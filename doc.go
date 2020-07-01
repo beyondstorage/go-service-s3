@@ -1,6 +1,4 @@
 /*
-Package example provided support for local file system.
+Package s3 provided support for AWS s3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/Welcome.html)
 */
-package example
-
-//go:generate definitions service.hcl
+package s3
