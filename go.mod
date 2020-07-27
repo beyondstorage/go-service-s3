@@ -1,4 +1,4 @@
-module github.com/aos-dev/go-service-fs
+module github.com/aos-dev/go-service-s3
 
 go 1.14
 
