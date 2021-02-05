@@ -2,32 +2,42 @@ package s3
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 
-	"github.com/aos-dev/go-storage/v2/pkg/iowrap"
-	"github.com/aos-dev/go-storage/v2/pkg/segment"
-	"github.com/aos-dev/go-storage/v2/types"
-	"github.com/aos-dev/go-storage/v2/types/info"
+	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
+	. "github.com/aos-dev/go-storage/v3/types"
 )
 
-func (s *Storage) delete(ctx context.Context, path string, opt *pairStorageDelete) (err error) {
-	rp := s.getAbsPath(path)
-
-	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(rp),
+func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt *pairStorageCompleteMultipart) (err error) {
+	if o.Mode&ModePart == 0 {
+		return fmt.Errorf("object is not a part object")
 	}
 
-	_, err = s.service.DeleteObject(input)
+	upload := &s3.CompletedMultipartUpload{}
+	for _, v := range parts {
+		upload.Parts = append(upload.Parts, &s3.CompletedPart{
+			ETag:       aws.String(v.ETag),
+			PartNumber: aws.Int64(int64(v.Index)),
+		})
+	}
+
+	_, err = s.service.CompleteMultipartUploadWithContext(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:          aws.String(s.name),
+		Key:             aws.String(o.ID),
+		MultipartUpload: upload,
+		UploadId:        aws.String(o.MustGetMultipartID()),
+	})
 	if err != nil {
-		return err
+		return
 	}
-	return nil
+	return
 }
-func (s *Storage) initIndexSegment(ctx context.Context, path string, opt *pairStorageInitIndexSegment) (seg segment.Segment, err error) {
+
+func (s *Storage) createMultipart(ctx context.Context, path string, opt *pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
 	input := &s3.CreateMultipartUploadInput{
@@ -40,136 +50,221 @@ func (s *Storage) initIndexSegment(ctx context.Context, path string, opt *pairSt
 		return
 	}
 
-	id := aws.StringValue(output.UploadId)
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	o.Mode |= ModePart
+	o.SetMultipartID(aws.StringValue(output.UploadId))
 
-	seg = segment.NewIndexBasedSegment(path, id)
-	return seg, nil
+	return o, nil
 }
-func (s *Storage) listDir(ctx context.Context, dir string, opt *pairStorageListDir) (err error) {
-	marker := ""
-	delimiter := "/"
-	rp := s.getAbsPath(dir)
 
-	var output *s3.ListObjectsV2Output
-	for {
-		output, err = s.service.ListObjectsV2(&s3.ListObjectsV2Input{
-			Bucket:     aws.String(s.name),
-			Prefix:     aws.String(rp),
-			MaxKeys:    aws.Int64(1000),
-			StartAfter: aws.String(marker),
-			Delimiter:  aws.String(delimiter),
-		})
-		if err != nil {
-			return err
-		}
+func (s *Storage) delete(ctx context.Context, path string, opt *pairStorageDelete) (err error) {
+	rp := s.getAbsPath(path)
 
-		if opt.HasDirFunc {
-			for _, v := range output.CommonPrefixes {
-				o := &types.Object{
-					ID:         *v.Prefix,
-					Name:       s.getRelPath(*v.Prefix),
-					Type:       types.ObjectTypeDir,
-					ObjectMeta: info.NewObjectMeta(),
-				}
-
-				opt.DirFunc(o)
-			}
-		}
-
-		if opt.HasFileFunc {
-			for _, v := range output.Contents {
-				o, err := s.formatFileObject(v)
-				if err != nil {
-					return err
-				}
-
-				opt.FileFunc(o)
-			}
-		}
-
-		marker = aws.StringValue(output.StartAfter)
-		if !aws.BoolValue(output.IsTruncated) {
-			break
-		}
-	}
-	return
-}
-func (s *Storage) listPrefix(ctx context.Context, prefix string, opt *pairStorageListPrefix) (err error) {
-	marker := ""
-	rp := s.getAbsPath(prefix)
-
-	var output *s3.ListObjectsV2Output
-	for {
-		output, err = s.service.ListObjectsV2(&s3.ListObjectsV2Input{
-			Bucket:     aws.String(s.name),
-			Prefix:     aws.String(rp),
-			MaxKeys:    aws.Int64(1000),
-			StartAfter: aws.String(marker),
-		})
-		if err != nil {
-			return err
-		}
-
-		for _, v := range output.Contents {
-			o, err := s.formatFileObject(v)
-			if err != nil {
-				return err
-			}
-
-			opt.ObjectFunc(o)
-		}
-
-		marker = aws.StringValue(output.StartAfter)
-		if !aws.BoolValue(output.IsTruncated) {
-			break
-		}
-	}
-	return
-}
-func (s *Storage) listPrefixSegments(ctx context.Context, prefix string, opt *pairStorageListPrefixSegments) (err error) {
-	keyMarker := ""
-	uploadIDMarker := ""
-	limit := 200
-
-	rp := s.getAbsPath(prefix)
-
-	var output *s3.ListMultipartUploadsOutput
-	for {
-		output, err = s.service.ListMultipartUploads(&s3.ListMultipartUploadsInput{
-			Bucket:         aws.String(s.name),
-			KeyMarker:      aws.String(keyMarker),
-			Prefix:         aws.String(rp),
-			UploadIdMarker: aws.String(uploadIDMarker),
-			MaxUploads:     aws.Int64(int64(limit)),
+	if opt.HasMultipartID {
+		_, err = s.service.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
+			Bucket:   aws.String(s.name),
+			Key:      aws.String(rp),
+			UploadId: aws.String(opt.MultipartID),
 		})
 		if err != nil {
 			return
 		}
-
-		for _, v := range output.Uploads {
-			seg := segment.NewIndexBasedSegment(*v.Key, *v.UploadId)
-
-			opt.SegmentFunc(seg)
-		}
-
-		keyMarker = aws.StringValue(output.NextKeyMarker)
-		uploadIDMarker = aws.StringValue(output.NextUploadIdMarker)
-		if keyMarker == "" && uploadIDMarker == "" {
-			break
-		}
-		if !aws.BoolValue(output.IsTruncated) {
-			break
-		}
 	}
-	return
+
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(rp),
+	}
+
+	_, err = s.service.DeleteObject(input)
+	if err != nil {
+		return err
+	}
+	return nil
 }
-func (s *Storage) metadata(ctx context.Context, opt *pairStorageMetadata) (meta info.StorageMeta, err error) {
-	meta = info.NewStorageMeta()
+
+func (s *Storage) list(ctx context.Context, path string, opt *pairStorageList) (oi *ObjectIterator, err error) {
+	input := &objectPageStatus{
+		maxKeys: 200,
+		prefix:  s.getAbsPath(path),
+	}
+
+	var nextFn NextObjectFunc
+
+	switch {
+	case opt.ListMode.IsPart():
+		nextFn = s.nextPartObjectPageByPrefix
+	case opt.ListMode.IsDir():
+		input.delimiter = "/"
+		nextFn = s.nextObjectPageByDir
+	case opt.ListMode.IsPrefix():
+		nextFn = s.nextObjectPageByPrefix
+	default:
+		return nil, fmt.Errorf("invalid list mode")
+	}
+
+	return NewObjectIterator(ctx, nextFn, input), nil
+}
+
+func (s *Storage) listMultipart(ctx context.Context, o *Object, opt *pairStorageListMultipart) (pi *PartIterator, err error) {
+	if o.Mode&ModePart == 0 {
+		return nil, fmt.Errorf("object is not a part object")
+	}
+
+	input := &partPageStatus{
+		maxParts: 200,
+		key:      o.ID,
+		uploadId: o.MustGetMultipartID(),
+	}
+
+	return NewPartIterator(ctx, s.nextPartPage, input), nil
+}
+
+func (s *Storage) metadata(ctx context.Context, opt *pairStorageMetadata) (meta *StorageMeta, err error) {
+	meta = NewStorageMeta()
 	meta.Name = s.name
 	meta.WorkDir = s.workDir
 	return meta, nil
 }
-func (s *Storage) read(ctx context.Context, path string, opt *pairStorageRead) (rc io.ReadCloser, err error) {
+
+func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
+		Bucket:            &s.name,
+		Delimiter:         &input.delimiter,
+		MaxKeys:           &input.maxKeys,
+		ContinuationToken: &input.continuationToken,
+		Prefix:            &input.prefix,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.CommonPrefixes {
+		o := s.newObject(true)
+		o.ID = *v.Prefix
+		o.Path = s.getRelPath(*v.Prefix)
+		o.Mode |= ModeDir
+
+		page.Data = append(page.Data, o)
+	}
+
+	for _, v := range output.Contents {
+		o, err := s.formatFileObject(v)
+		if err != nil {
+			return err
+		}
+
+		page.Data = append(page.Data, o)
+	}
+
+	if output.IsTruncated != nil && !*output.IsTruncated {
+		return IterateDone
+	}
+
+	input.continuationToken = *output.NextContinuationToken
+	return nil
+}
+
+func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
+		Bucket:            &s.name,
+		MaxKeys:           &input.maxKeys,
+		ContinuationToken: &input.continuationToken,
+		Prefix:            &input.prefix,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Contents {
+		o, err := s.formatFileObject(v)
+		if err != nil {
+			return err
+		}
+
+		page.Data = append(page.Data, o)
+	}
+
+	if output.IsTruncated != nil && !*output.IsTruncated {
+		return IterateDone
+	}
+
+	input.continuationToken = aws.StringValue(output.NextContinuationToken)
+	return nil
+}
+
+func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
+	input := page.Status.(*objectPageStatus)
+
+	output, err := s.service.ListMultipartUploadsWithContext(ctx, &s3.ListMultipartUploadsInput{
+		Bucket:         &s.name,
+		KeyMarker:      &input.keyMarker,
+		MaxUploads:     &input.maxKeys,
+		Prefix:         &input.prefix,
+		UploadIdMarker: &input.uploadIdMarker,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Uploads {
+		o := s.newObject(true)
+		o.ID = *v.Key
+		o.Path = s.getRelPath(*v.Key)
+		o.Mode |= ModePart
+		o.SetMultipartID(*v.UploadId)
+
+		page.Data = append(page.Data, o)
+	}
+
+	if output.IsTruncated != nil && !*output.IsTruncated {
+		return IterateDone
+	}
+
+	input.keyMarker = aws.StringValue(output.KeyMarker)
+	input.uploadIdMarker = aws.StringValue(output.UploadIdMarker)
+	return nil
+}
+
+func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
+	input := page.Status.(*partPageStatus)
+
+	output, err := s.service.ListPartsWithContext(ctx, &s3.ListPartsInput{
+		Bucket:           &s.name,
+		Key:              &input.key,
+		MaxParts:         &input.maxParts,
+		PartNumberMarker: &input.partNumberMarker,
+		UploadId:         &input.uploadId,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, v := range output.Parts {
+		p := &Part{
+			Index: int(*v.PartNumber),
+			Size:  *v.Size,
+			ETag:  aws.StringValue(v.ETag),
+		}
+
+		page.Data = append(page.Data, p)
+	}
+
+	if !aws.BoolValue(output.IsTruncated) {
+		return IterateDone
+	}
+
+	input.partNumberMarker = aws.Int64Value(output.NextPartNumberMarker)
+	return nil
+}
+
+func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt *pairStorageRead) (n int64, err error) {
 	rp := s.getAbsPath(path)
 
 	input := &s3.GetObjectInput{
@@ -177,18 +272,21 @@ func (s *Storage) read(ctx context.Context, path string, opt *pairStorageRead) (
 		Key:    aws.String(rp),
 	}
 
-	output, err := s.service.GetObject(input)
+	output, err := s.service.GetObjectWithContext(ctx, input)
 	if err != nil {
-		return nil, err
+		return
+	}
+	defer output.Body.Close()
+
+	rc := output.Body
+	if opt.HasIoCallback {
+		rc = iowrap.CallbackReadCloser(rc, opt.IoCallback)
 	}
 
-	rc = output.Body
-	if opt.HasReadCallbackFunc {
-		rc = iowrap.CallbackReadCloser(rc, opt.ReadCallbackFunc)
-	}
-	return rc, nil
+	return io.Copy(w, rc)
 }
-func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (o *types.Object, err error) {
+
+func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
 	input := &s3.HeadObjectInput{
@@ -201,31 +299,32 @@ func (s *Storage) stat(ctx context.Context, path string, opt *pairStorageStat) (
 		return nil, err
 	}
 
-	// TODO: Add dir support.
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	o.Mode |= ModeRead
 
-	o = &types.Object{
-		ID:         rp,
-		Name:       path,
-		Type:       types.ObjectTypeFile,
-		Size:       aws.Int64Value(output.ContentLength),
-		UpdatedAt:  aws.TimeValue(output.LastModified),
-		ObjectMeta: info.NewObjectMeta(),
-	}
+	o.SetContentLength(aws.Int64Value(output.ContentLength))
+	o.SetLastModified(aws.TimeValue(output.LastModified))
 
 	if output.ContentType != nil {
 		o.SetContentType(*output.ContentType)
 	}
 	if output.ETag != nil {
-		o.SetETag(*output.ETag)
+		o.SetEtag(*output.ETag)
 	}
+	sm := make(map[string]string)
 	if v := aws.StringValue(output.StorageClass); v != "" {
-		setStorageClass(o.ObjectMeta, v)
+		sm[MetadataStorageClass] = v
 	}
+	o.SetServiceMetadata(sm)
+
 	return o, nil
 }
-func (s *Storage) write(ctx context.Context, path string, r io.Reader, opt *pairStorageWrite) (err error) {
-	if opt.HasReadCallbackFunc {
-		r = iowrap.CallbackReader(r, opt.ReadCallbackFunc)
+
+func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt *pairStorageWrite) (n int64, err error) {
+	if opt.HasIoCallback {
+		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
 
 	rp := s.getAbsPath(path)
@@ -233,80 +332,38 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, opt *pair
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
-		ContentLength: &opt.Size,
+		ContentLength: &size,
 		Body:          aws.ReadSeekCloser(r),
 	}
-	if opt.HasChecksum {
-		input.ContentMD5 = &opt.Checksum
+	if opt.HasContentMd5 {
+		input.ContentMD5 = &opt.ContentMd5
 	}
 	if opt.HasStorageClass {
 		input.StorageClass = &opt.StorageClass
 	}
 
-	_, err = s.service.PutObject(input)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (s *Storage) writeIndexSegment(ctx context.Context, seg segment.Segment, r io.Reader, index int, size int64, opt *pairStorageWriteIndexSegment) (err error) {
-	p, err := seg.(*segment.IndexBasedSegment).InsertPart(index, size)
+	_, err = s.service.PutObjectWithContext(ctx, input)
 	if err != nil {
 		return
 	}
+	return size, nil
+}
 
-	rp := s.getAbsPath(seg.Path())
-
-	if opt.HasReadCallbackFunc {
-		r = iowrap.CallbackReader(r, opt.ReadCallbackFunc)
+func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt *pairStorageWriteMultipart) (n int64, err error) {
+	if o.Mode&ModePart == 0 {
+		return 0, fmt.Errorf("object is not a part object")
 	}
 
-	_, err = s.service.UploadPart(&s3.UploadPartInput{
-		Body:          aws.ReadSeekCloser(r),
-		Bucket:        aws.String(s.name),
-		ContentLength: aws.Int64(size),
-		Key:           aws.String(rp),
-		PartNumber:    aws.Int64(int64(p.Index)),
-		UploadId:      aws.String(seg.ID()),
+	_, err = s.service.UploadPartWithContext(ctx, &s3.UploadPartInput{
+		Bucket:        &s.name,
+		PartNumber:    aws.Int64(int64(index)),
+		Key:           aws.String(o.ID),
+		UploadId:      aws.String(o.MustGetMultipartID()),
+		ContentLength: &size,
+		Body:          iowrap.SizedReadSeekCloser(r, size),
 	})
 	if err != nil {
 		return
 	}
-	return
-}
-
-func (s *Storage) abortSegment(ctx context.Context, seg segment.Segment, opt *pairStorageAbortSegment) (err error) {
-	parts := seg.(*segment.IndexBasedSegment).Parts()
-	objectParts := make([]*s3.CompletedPart, 0, len(parts))
-	for _, v := range parts {
-		objectParts = append(objectParts, &s3.CompletedPart{
-			PartNumber: aws.Int64(int64(v.Index)),
-		})
-	}
-
-	rp := s.getAbsPath(seg.Path())
-
-	_, err = s.service.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
-		Bucket:          aws.String(s.name),
-		Key:             aws.String(rp),
-		MultipartUpload: &s3.CompletedMultipartUpload{Parts: objectParts},
-		UploadId:        aws.String(seg.ID()),
-	})
-	if err != nil {
-		return
-	}
-	return
-}
-func (s *Storage) completeSegment(ctx context.Context, seg segment.Segment, opt *pairStorageCompleteSegment) (err error) {
-	rp := s.getAbsPath(seg.Path())
-
-	_, err = s.service.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
-		Bucket:   aws.String(s.name),
-		Key:      aws.String(rp),
-		UploadId: aws.String(seg.ID()),
-	})
-	if err != nil {
-		return
-	}
-	return
+	return size, nil
 }
