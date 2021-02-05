@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aos-dev/go-storage/v2/types/info"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -12,12 +11,11 @@ import (
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/service/s3"
 
-	"github.com/aos-dev/go-storage/v2"
-	"github.com/aos-dev/go-storage/v2/pkg/credential"
-	"github.com/aos-dev/go-storage/v2/pkg/httpclient"
-	"github.com/aos-dev/go-storage/v2/services"
-	"github.com/aos-dev/go-storage/v2/types"
-	ps "github.com/aos-dev/go-storage/v2/types/pairs"
+	ps "github.com/aos-dev/go-storage/v3/pairs"
+	"github.com/aos-dev/go-storage/v3/pkg/credential"
+	"github.com/aos-dev/go-storage/v3/pkg/httpclient"
+	"github.com/aos-dev/go-storage/v3/services"
+	typ "github.com/aos-dev/go-storage/v3/types"
 )
 
 // Service is the s3 service config.
@@ -37,6 +35,8 @@ type Storage struct {
 
 	name    string
 	workDir string
+
+	pairPolicy typ.PairPolicy
 }
 
 // String implements Storager.String
@@ -48,25 +48,25 @@ func (s *Storage) String() string {
 }
 
 // New will create both Servicer and Storager.
-func New(pairs ...*types.Pair) (storage.Servicer, storage.Storager, error) {
+func New(pairs ...typ.Pair) (typ.Servicer, typ.Storager, error) {
 	return newServicerAndStorager(pairs...)
 }
 
 // NewServicer will create Servicer only.
-func NewServicer(pairs ...*types.Pair) (storage.Servicer, error) {
+func NewServicer(pairs ...typ.Pair) (typ.Servicer, error) {
 	return newServicer(pairs...)
 }
 
 // NewStorager will create Storager only.
-func NewStorager(pairs ...*types.Pair) (storage.Storager, error) {
+func NewStorager(pairs ...typ.Pair) (typ.Storager, error) {
 	_, store, err := newServicerAndStorager(pairs...)
 	return store, err
 }
 
-func newServicer(pairs ...*types.Pair) (srv *Service, err error) {
+func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	defer func() {
 		if err != nil {
-			err = &services.InitError{Op: services.OpNewServicer, Type: Type, Err: err, Pairs: pairs}
+			err = &services.InitError{Op: "new_servicer", Type: Type, Err: err, Pairs: pairs}
 		}
 	}()
 
@@ -80,10 +80,15 @@ func newServicer(pairs ...*types.Pair) (srv *Service, err error) {
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
 
-	credProtocol, cred := opt.Credential.Protocol(), opt.Credential.Value()
-	switch credProtocol {
+	cp, err := credential.Parse(opt.Credential)
+	if err != nil {
+		return nil, err
+	}
+	switch cp.Protocol() {
 	case credential.ProtocolHmac:
-		cfg = cfg.WithCredentials(credentials.NewStaticCredentials(cred[0], cred[1], ""))
+		ak, sk := cp.Hmac()
+
+		cfg = cfg.WithCredentials(credentials.NewStaticCredentials(ak, sk, ""))
 	case credential.ProtocolEnv:
 		cfg = cfg.WithCredentials(credentials.NewEnvCredentials())
 	default:
@@ -103,10 +108,10 @@ func newServicer(pairs ...*types.Pair) (srv *Service, err error) {
 }
 
 // New will create a new s3 service.
-func newServicerAndStorager(pairs ...*types.Pair) (srv *Service, store *Storage, err error) {
+func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, err error) {
 	defer func() {
 		if err != nil {
-			err = &services.InitError{Op: services.OpNewStorager, Type: Type, Err: err, Pairs: pairs}
+			err = &services.InitError{Op: "new_storager", Type: Type, Err: err, Pairs: pairs}
 		}
 	}()
 
@@ -165,7 +170,7 @@ func newS3Service(sess *session.Session, cfgs ...*aws.Config) (srv *s3.S3) {
 }
 
 // newStorage will create a new client.
-func (s *Service) newStorage(pairs ...*types.Pair) (st *Storage, err error) {
+func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 	opt, err := parsePairStorageNew(pairs)
 	if err != nil {
 		return nil, err
@@ -222,22 +227,28 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 	}
 }
 
-func (s *Storage) formatFileObject(v *s3.Object) (o *types.Object, err error) {
-	o = &types.Object{
-		ID:         *v.Key,
-		Name:       s.getRelPath(*v.Key),
-		Type:       types.ObjectTypeFile,
-		Size:       aws.Int64Value(v.Size),
-		UpdatedAt:  aws.TimeValue(v.LastModified),
-		ObjectMeta: info.NewObjectMeta(),
+func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
+	o = s.newObject(false)
+	o.ID = *v.Key
+	o.Path = s.getRelPath(*v.Key)
+	o.Mode |= typ.ModeRead
+
+	o.SetContentLength(aws.Int64Value(v.Size))
+	o.SetLastModified(aws.TimeValue(v.LastModified))
+
+	if v.ETag != nil {
+		o.SetEtag(*v.ETag)
 	}
 
+	sm := make(map[string]string)
 	if value := aws.StringValue(v.StorageClass); value != "" {
-		setStorageClass(o.ObjectMeta, value)
+		sm[MetadataStorageClass] = value
 	}
-	if v.ETag != nil {
-		o.SetETag(*v.ETag)
-	}
+	o.SetServiceMetadata(sm)
 
 	return
+}
+
+func (s *Storage) newObject(done bool) *typ.Object {
+	return typ.NewObject(s, done)
 }
