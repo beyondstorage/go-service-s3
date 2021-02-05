@@ -136,7 +136,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 		Bucket:            &s.name,
 		Delimiter:         &input.delimiter,
 		MaxKeys:           &input.maxKeys,
-		ContinuationToken: &input.continuationToken,
+		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
 	})
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 		page.Data = append(page.Data, o)
 	}
 
-	if output.IsTruncated != nil && !*output.IsTruncated {
+	if !aws.BoolValue(output.IsTruncated) {
 		return IterateDone
 	}
 
@@ -175,7 +175,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
 		MaxKeys:           &input.maxKeys,
-		ContinuationToken: &input.continuationToken,
+		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
 	})
 	if err != nil {
@@ -191,7 +191,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 		page.Data = append(page.Data, o)
 	}
 
-	if output.IsTruncated != nil && !*output.IsTruncated {
+	if !aws.BoolValue(output.IsTruncated) {
 		return IterateDone
 	}
 
@@ -223,7 +223,7 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 		page.Data = append(page.Data, o)
 	}
 
-	if output.IsTruncated != nil && !*output.IsTruncated {
+	if !aws.BoolValue(output.IsTruncated) {
 		return IterateDone
 	}
 
