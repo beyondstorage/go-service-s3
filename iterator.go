@@ -17,6 +17,18 @@ type objectPageStatus struct {
 	uploadIdMarker string
 }
 
+// getServiceContinuationToken equals aws.String, but return nil while empty.
+//
+// NOTES:
+//   aws will return "InvalidArgument: The continuation token provided is incorrect" if
+//   input's ContinuationToken is set to "".
+func (i objectPageStatus) getServiceContinuationToken() *string {
+	if i.continuationToken == "" {
+		return nil
+	}
+	return &i.continuationToken
+}
+
 func (i *objectPageStatus) ContinuationToken() string {
 	if i.uploadIdMarker != "" {
 		return i.continuationToken + "/" + i.uploadIdMarker
