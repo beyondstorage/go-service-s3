@@ -1,0 +1,28 @@
+name: "Integration Test"
+
+on: [push,pull_request]
+
+jobs:
+  integration_test:
+    name: "Integration Test"
+    runs-on: [Linux]
+
+    strategy:
+      matrix:
+        go: [ "1.14", "1.15" ]
+
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Test
+        env:
+          STORAGE_S3_CREDENTIAL: ${{ secrets.STORAGE_S3_CREDENTIAL }}
+          STORAGE_S3_NAME: ${{ secrets.STORAGE_S3_NAME }}
+          STORAGE_S3_LOCATION: ${{ secrets.STORAGE_S3_LOCATION }}
+        run: make integration_test
