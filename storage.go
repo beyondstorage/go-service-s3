@@ -37,6 +37,14 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 	return
 }
 
+func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
+	o = s.newObject(false)
+	o.Mode = ModeRead
+	o.ID = s.getAbsPath(path)
+	o.Path = path
+	return o
+}
+
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
