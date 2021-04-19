@@ -24,6 +24,8 @@ type Service struct {
 	service *s3.S3
 
 	defaultPairs DefaultServicePairs
+
+	typ.UnimplementedServicer
 }
 
 // String implements Servicer.String
@@ -40,6 +42,9 @@ type Storage struct {
 
 	defaultPairs DefaultStoragePairs
 	pairPolicy   typ.PairPolicy
+
+	typ.UnimplementedStorager
+	typ.UnimplementedMultiparter
 }
 
 // String implements Storager.String
