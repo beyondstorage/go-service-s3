@@ -1,6 +1,8 @@
 package s3
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -292,3 +294,10 @@ const (
 	ServerSideEncryptionAes256 = s3.ServerSideEncryptionAes256
 	ServerSideEncryptionAwsKms = s3.ServerSideEncryptionAwsKms
 )
+
+func ComputeMD5(data string) string {
+	md5 := md5.New()
+	md5.Write([]byte(data))
+	md5Str := hex.EncodeToString(md5.Sum(nil))
+	return md5Str
+}

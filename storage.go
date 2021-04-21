@@ -68,9 +68,8 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	}
 	if opt.HasSseCustomerKey {
 		input.SSECustomerKey = &opt.SseCustomerKey
-	}
-	if opt.HasSseCustomerKeyMd5 {
-		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		input.SSECustomerKeyMD5 = &keyMD5
 	}
 	if opt.HasSseKmsKeyID {
 		input.SSEKMSKeyId = &opt.SseKmsKeyID
@@ -353,9 +352,8 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 	}
 	if opt.HasSseCustomerKey {
 		input.SSECustomerKey = &opt.SseCustomerKey
-	}
-	if opt.HasSseCustomerKeyMd5 {
-		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		input.SSECustomerKeyMD5 = &keyMD5
 	}
 
 	output, err := s.service.GetObjectWithContext(ctx, input)
@@ -387,9 +385,8 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	}
 	if opt.HasSseCustomerKey {
 		input.SSECustomerKey = &opt.SseCustomerKey
-	}
-	if opt.HasSseCustomerKeyMd5 {
-		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		input.SSECustomerKeyMD5 = &keyMD5
 	}
 
 	output, err := s.service.HeadObject(input)
@@ -453,9 +450,8 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	}
 	if opt.HasSseCustomerKey {
 		input.SSECustomerKey = &opt.SseCustomerKey
-	}
-	if opt.HasSseCustomerKeyMd5 {
-		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		input.SSECustomerKeyMD5 = &keyMD5
 	}
 	if opt.HasSseKmsKeyID {
 		input.SSEKMSKeyId = &opt.SseKmsKeyID
@@ -492,9 +488,8 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 	}
 	if opt.HasSseCustomerKey {
 		input.SSECustomerKey = &opt.SseCustomerKey
-	}
-	if opt.HasSseCustomerKeyMd5 {
-		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		input.SSECustomerKeyMD5 = &keyMD5
 	}
 
 	_, err = s.service.UploadPartWithContext(ctx, input)

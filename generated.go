@@ -41,8 +41,6 @@ const (
 	pairSseCustomerAlgorithm = "s3_sse_customer_algorithm"
 	// SseCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object
 	pairSseCustomerKey = "s3_sse_customer_key"
-	// SseCustomerKeyMd5 specifies the 128-bit MD5 digest of the encryption key according to RFC 1321
-	pairSseCustomerKeyMd5 = "s3_sse_customer_key_md5"
 	// SseKmsKeyID specifies the AWS KMS key ID to use for object encryption
 	pairSseKmsKeyID = "s3_sse_kms_key_id"
 	// StorageClass
@@ -137,15 +135,6 @@ func WithSseCustomerAlgorithm(v string) Pair {
 func WithSseCustomerKey(v string) Pair {
 	return Pair{
 		Key:   pairSseCustomerKey,
-		Value: v,
-	}
-}
-
-// WithSseCustomerKeyMd5 will apply sse_customer_key_md5 value to Options
-// SseCustomerKeyMd5 specifies the 128-bit MD5 digest of the encryption key according to RFC 1321
-func WithSseCustomerKeyMd5(v string) Pair {
-	return Pair{
-		Key:   pairSseCustomerKeyMd5,
 		Value: v,
 	}
 }
@@ -703,8 +692,6 @@ type pairStorageCreateMultipart struct {
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
 	SseCustomerKey          string
-	HasSseCustomerKeyMd5    bool
-	SseCustomerKeyMd5       string
 	HasSseKmsKeyID          bool
 	SseKmsKeyID             string
 	// Generated pairs
@@ -735,9 +722,6 @@ func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreat
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
 			result.SseCustomerKey = v.Value.(string)
-		case pairSseCustomerKeyMd5:
-			result.HasSseCustomerKeyMd5 = true
-			result.SseCustomerKeyMd5 = v.Value.(string)
 		case pairSseKmsKeyID:
 			result.HasSseKmsKeyID = true
 			result.SseKmsKeyID = v.Value.(string)
@@ -925,8 +909,6 @@ type pairStorageRead struct {
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
 	SseCustomerKey          string
-	HasSseCustomerKeyMd5    bool
-	SseCustomerKeyMd5       string
 	// Generated pairs
 }
 
@@ -958,9 +940,6 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
 			result.SseCustomerKey = v.Value.(string)
-		case pairSseCustomerKeyMd5:
-			result.HasSseCustomerKeyMd5 = true
-			result.SseCustomerKeyMd5 = v.Value.(string)
 		// Generated pairs
 		default:
 
@@ -986,8 +965,6 @@ type pairStorageStat struct {
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
 	SseCustomerKey          string
-	HasSseCustomerKeyMd5    bool
-	SseCustomerKeyMd5       string
 	// Generated pairs
 }
 
@@ -1010,9 +987,6 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
 			result.SseCustomerKey = v.Value.(string)
-		case pairSseCustomerKeyMd5:
-			result.HasSseCustomerKeyMd5 = true
-			result.SseCustomerKeyMd5 = v.Value.(string)
 		// Generated pairs
 		default:
 
@@ -1048,8 +1022,6 @@ type pairStorageWrite struct {
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
 	SseCustomerKey          string
-	HasSseCustomerKeyMd5    bool
-	SseCustomerKeyMd5       string
 	HasSseKmsKeyID          bool
 	SseKmsKeyID             string
 	HasStorageClass         bool
@@ -1091,9 +1063,6 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
 			result.SseCustomerKey = v.Value.(string)
-		case pairSseCustomerKeyMd5:
-			result.HasSseCustomerKeyMd5 = true
-			result.SseCustomerKeyMd5 = v.Value.(string)
 		case pairSseKmsKeyID:
 			result.HasSseKmsKeyID = true
 			result.SseKmsKeyID = v.Value.(string)
@@ -1125,8 +1094,6 @@ type pairStorageWriteMultipart struct {
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
 	SseCustomerKey          string
-	HasSseCustomerKeyMd5    bool
-	SseCustomerKeyMd5       string
 	// Generated pairs
 }
 
@@ -1149,9 +1116,6 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
 			result.SseCustomerKey = v.Value.(string)
-		case pairSseCustomerKeyMd5:
-			result.HasSseCustomerKeyMd5 = true
-			result.SseCustomerKeyMd5 = v.Value.(string)
 		// Generated pairs
 		default:
 
