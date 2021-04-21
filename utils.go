@@ -40,9 +40,8 @@ type Storage struct {
 	name    string
 	workDir string
 
-	defaultPairs        DefaultStoragePairs
-	pairPolicy          typ.PairPolicy
-	exceptedBucketOwner string
+	defaultPairs DefaultStoragePairs
+	pairPolicy   typ.PairPolicy
 
 	typ.UnimplementedStorager
 	typ.UnimplementedMultiparter
@@ -99,10 +98,6 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 	if opt.HasUseAccelerate {
 		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
-	}
-
-	if opt.HasDisableContentMd5Validation {
-		cfg = cfg.WithS3DisableContentMD5Validation(opt.DisableContentMd5Validation)
 	}
 
 	if opt.HasUseArnRegion {
@@ -224,9 +219,6 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 	}
 	if opt.HasWorkDir {
 		st.workDir = opt.WorkDir
-	}
-	if opt.HasExceptedBucketOwner {
-		st.exceptedBucketOwner = opt.ExceptedBucketOwner
 	}
 	return st, nil
 }

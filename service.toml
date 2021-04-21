@@ -4,7 +4,7 @@ name = "s3"
 
 [namespace.service.new]
 required = ["credential"]
-optional = ["default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "disable_content_md5_validation", "use_arn_region"]
+optional = ["default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
 
 [namespace.service.op.create]
 required = ["location"]
@@ -20,13 +20,13 @@ implement = ["multiparter"]
 
 [namespace.storage.new]
 required = ["location", "name"]
-optional = ["default_storage_pairs", "pair_policy", "work_dir", "excepted_bucket_owner"]
+optional = ["default_storage_pairs", "pair_policy", "work_dir"]
 
 [namespace.storage.op.delete]
 optional = ["multipart_id", "excepted_bucket_owner"]
 
 [namespace.storage.op.list]
-optional = ["list_mode"]
+optional = ["list_mode", "excepted_bucket_owner"]
 
 [namespace.storage.op.read]
 optional = ["offset", "io_callback", "size", "excepted_bucket_owner", "sse_customer_algorithm", "sse_customer_key", "sse_customer_key_md5"]
@@ -42,6 +42,9 @@ optional = ["bucket_key_enabled", "excepted_bucket_owner", "sse_customer_algorit
 
 [namespace.storage.op.write_multipart]
 optional = ["excepted_bucket_owner", "sse_customer_algorithm", "sse_customer_key", "sse_customer_key_md5"]
+
+[namespace.storage.op.list_multipart]
+optional = ["excepted_bucket_owner"]
 
 [namespace.storage.op.complete_multipart]
 optional = ["excepted_bucket_owner"]
@@ -62,10 +65,6 @@ description = "set this to `true` to disable the SDK adding the `Expect: 100-Con
 type = "bool"
 description = "set this to `true` to enable S3 Accelerate feature"
 
-[pairs.disable_content_md5_validation]
-type = "bool"
-description = "set this to `true` to disable the S3 service client from automatically adding the ContentMD5 to S3 Object Put and Upload API calls"
-
 [pairs.use_arn_region]
 type = "bool"
 description = "set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter"
@@ -79,6 +78,7 @@ type = "string"
 
 [pairs.bucket_key_enabled]
 type = "bool"
+description = "specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)"
 
 [pairs.excepted_bucket_owner]
 type = "string"

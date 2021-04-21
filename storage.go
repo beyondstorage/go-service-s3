@@ -138,6 +138,10 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 		prefix:  s.getAbsPath(path),
 	}
 
+	if opt.HasExceptedBucketOwner {
+		input.expectedBucketOwner = opt.ExceptedBucketOwner
+	}
+
 	var nextFn NextObjectFunc
 
 	switch {
@@ -165,6 +169,9 @@ func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageL
 		key:      o.ID,
 		uploadId: o.MustGetMultipartID(),
 	}
+	if opt.HasExceptedBucketOwner {
+		input.expectedBucketOwner = opt.ExceptedBucketOwner
+	}
 
 	return NewPartIterator(ctx, s.nextPartPage, input), nil
 }
@@ -179,14 +186,18 @@ func (s *Storage) metadata(ctx context.Context, opt pairStorageMetadata) (meta *
 func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
 
-	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
-		Bucket:              &s.name,
-		Delimiter:           &input.delimiter,
-		MaxKeys:             &input.maxKeys,
-		ContinuationToken:   input.getServiceContinuationToken(),
-		Prefix:              &input.prefix,
-		ExpectedBucketOwner: &s.exceptedBucketOwner,
-	})
+	listInput := &s3.ListObjectsV2Input{
+		Bucket:            &s.name,
+		Delimiter:         &input.delimiter,
+		MaxKeys:           &input.maxKeys,
+		ContinuationToken: input.getServiceContinuationToken(),
+		Prefix:            &input.prefix,
+	}
+	if input.expectedBucketOwner != "" {
+		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
+	}
+
+	output, err := s.service.ListObjectsV2WithContext(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -220,13 +231,17 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
 
-	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
+	listInput := &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
 		MaxKeys:           &input.maxKeys,
 		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
-		//ExpectedBucketOwner:
-	})
+	}
+	if input.expectedBucketOwner != "" {
+		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
+	}
+
+	output, err := s.service.ListObjectsV2WithContext(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -251,14 +266,18 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
 
-	output, err := s.service.ListMultipartUploadsWithContext(ctx, &s3.ListMultipartUploadsInput{
-		Bucket:              &s.name,
-		KeyMarker:           &input.keyMarker,
-		MaxUploads:          &input.maxKeys,
-		Prefix:              &input.prefix,
-		UploadIdMarker:      &input.uploadIdMarker,
-		ExpectedBucketOwner: &s.exceptedBucketOwner,
-	})
+	listInput := &s3.ListMultipartUploadsInput{
+		Bucket:         &s.name,
+		KeyMarker:      &input.keyMarker,
+		MaxUploads:     &input.maxKeys,
+		Prefix:         &input.prefix,
+		UploadIdMarker: &input.uploadIdMarker,
+	}
+	if input.expectedBucketOwner != "" {
+		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
+	}
+
+	output, err := s.service.ListMultipartUploadsWithContext(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -285,14 +304,18 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	input := page.Status.(*partPageStatus)
 
-	output, err := s.service.ListPartsWithContext(ctx, &s3.ListPartsInput{
-		Bucket:              &s.name,
-		Key:                 &input.key,
-		MaxParts:            &input.maxParts,
-		PartNumberMarker:    &input.partNumberMarker,
-		UploadId:            &input.uploadId,
-		ExpectedBucketOwner: &s.exceptedBucketOwner,
-	})
+	listInput := &s3.ListPartsInput{
+		Bucket:           &s.name,
+		Key:              &input.key,
+		MaxParts:         &input.maxParts,
+		PartNumberMarker: &input.partNumberMarker,
+		UploadId:         &input.uploadId,
+	}
+	if input.expectedBucketOwner != "" {
+		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
+	}
+
+	output, err := s.service.ListPartsWithContext(ctx, listInput)
 	if err != nil {
 		return err
 	}

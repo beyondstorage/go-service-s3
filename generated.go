@@ -23,7 +23,7 @@ const Type = "s3"
 
 // Service available pairs.
 const (
-	// BucketKeyEnabled
+	// BucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
 	pairBucketKeyEnabled = "s3_bucket_key_enabled"
 	// DefaultServicePairs set default pairs for service actions
 	pairDefaultServicePairs = "s3_default_service_pairs"
@@ -31,8 +31,6 @@ const (
 	pairDefaultStoragePairs = "s3_default_storage_pairs"
 	// Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
 	pairDisable100Continue = "s3_disable_100_continue"
-	// DisableContentMd5Validation set this to `true` to disable the S3 service client from automatically adding the ContentMD5 to S3 Object Put and Upload API calls
-	pairDisableContentMd5Validation = "s3_disable_content_md5_validation"
 	// ExceptedBucketOwner the account ID of the excepted bucket owner
 	pairExceptedBucketOwner = "s3_excepted_bucket_owner"
 	// ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
@@ -63,7 +61,7 @@ const (
 )
 
 // WithBucketKeyEnabled will apply bucket_key_enabled value to Options
-// BucketKeyEnabled
+// BucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
 func WithBucketKeyEnabled(v bool) Pair {
 	return Pair{
 		Key:   pairBucketKeyEnabled,
@@ -94,15 +92,6 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 func WithDisable100Continue(v bool) Pair {
 	return Pair{
 		Key:   pairDisable100Continue,
-		Value: v,
-	}
-}
-
-// WithDisableContentMd5Validation will apply disable_content_md5_validation value to Options
-// DisableContentMd5Validation set this to `true` to disable the S3 service client from automatically adding the ContentMD5 to S3 Object Put and Upload API calls
-func WithDisableContentMd5Validation(v bool) Pair {
-	return Pair{
-		Key:   pairDisableContentMd5Validation,
 		Value: v,
 	}
 }
@@ -205,22 +194,20 @@ type pairServiceNew struct {
 	HasCredential bool
 	Credential    string
 	// Optional pairs
-	HasDefaultServicePairs         bool
-	DefaultServicePairs            DefaultServicePairs
-	HasDisable100Continue          bool
-	Disable100Continue             bool
-	HasDisableContentMd5Validation bool
-	DisableContentMd5Validation    bool
-	HasEndpoint                    bool
-	Endpoint                       string
-	HasForcePathStyle              bool
-	ForcePathStyle                 bool
-	HasHTTPClientOptions           bool
-	HTTPClientOptions              *httpclient.Options
-	HasUseAccelerate               bool
-	UseAccelerate                  bool
-	HasUseArnRegion                bool
-	UseArnRegion                   bool
+	HasDefaultServicePairs bool
+	DefaultServicePairs    DefaultServicePairs
+	HasDisable100Continue  bool
+	Disable100Continue     bool
+	HasEndpoint            bool
+	Endpoint               string
+	HasForcePathStyle      bool
+	ForcePathStyle         bool
+	HasHTTPClientOptions   bool
+	HTTPClientOptions      *httpclient.Options
+	HasUseAccelerate       bool
+	UseAccelerate          bool
+	HasUseArnRegion        bool
+	UseArnRegion           bool
 	// Generated pairs
 }
 
@@ -252,12 +239,6 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasDisable100Continue = true
 			result.Disable100Continue = v.Value.(bool)
-		case pairDisableContentMd5Validation:
-			if result.HasDisableContentMd5Validation {
-				continue
-			}
-			result.HasDisableContentMd5Validation = true
-			result.DisableContentMd5Validation = v.Value.(bool)
 		case "endpoint":
 			if result.HasEndpoint {
 				continue
@@ -562,8 +543,6 @@ type pairStorageNew struct {
 	// Optional pairs
 	HasDefaultStoragePairs bool
 	DefaultStoragePairs    DefaultStoragePairs
-	HasExceptedBucketOwner bool
-	ExceptedBucketOwner    string
 	HasPairPolicy          bool
 	PairPolicy             PairPolicy
 	HasWorkDir             bool
@@ -599,12 +578,6 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasDefaultStoragePairs = true
 			result.DefaultStoragePairs = v.Value.(DefaultStoragePairs)
-		case pairExceptedBucketOwner:
-			if result.HasExceptedBucketOwner {
-				continue
-			}
-			result.HasExceptedBucketOwner = true
-			result.ExceptedBucketOwner = v.Value.(string)
 		case "pair_policy":
 			if result.HasPairPolicy {
 				continue
@@ -829,8 +802,10 @@ type pairStorageList struct {
 
 	// Required pairs
 	// Optional pairs
-	HasListMode bool
-	ListMode    ListMode
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
+	HasListMode            bool
+	ListMode               ListMode
 	// Generated pairs
 }
 
@@ -844,6 +819,9 @@ func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "list_mode":
 			result.HasListMode = true
 			result.ListMode = v.Value.(ListMode)
@@ -866,6 +844,8 @@ type pairStorageListMultipart struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
 	// Generated pairs
 }
 
@@ -879,6 +859,9 @@ func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMul
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		// Generated pairs
 		default:
 
