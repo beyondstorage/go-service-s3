@@ -25,12 +25,17 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 		})
 	}
 
-	_, err = s.service.CompleteMultipartUploadWithContext(ctx, &s3.CompleteMultipartUploadInput{
+	input := &s3.CompleteMultipartUploadInput{
 		Bucket:          aws.String(s.name),
 		Key:             aws.String(o.ID),
 		MultipartUpload: upload,
 		UploadId:        aws.String(o.MustGetMultipartID()),
-	})
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+
+	_, err = s.service.CompleteMultipartUploadWithContext(ctx, input)
 	if err != nil {
 		return
 	}
@@ -52,6 +57,27 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
 	}
+	if opt.HasBucketKeyEnabled {
+		input.BucketKeyEnabled = &opt.BucketKeyEnabled
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasSseCustomerAlgorithm {
+		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
+	}
+	if opt.HasSseCustomerKey {
+		input.SSECustomerKey = &opt.SseCustomerKey
+	}
+	if opt.HasSseCustomerKeyMd5 {
+		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+	}
+	if opt.HasSseKmsKeyID {
+		input.SSEKMSKeyId = &opt.SseKmsKeyID
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = &opt.ServerSideEncryption
+	}
 
 	output, err := s.service.CreateMultipartUpload(input)
 	if err != nil {
@@ -64,6 +90,12 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.StringValue(output.UploadId))
 
+	sm := make(map[string]string)
+	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+		sm[MetadataServerSideEncryption] = v
+	}
+	o.SetServiceMetadata(sm)
+
 	return o, nil
 }
 
@@ -71,11 +103,15 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	rp := s.getAbsPath(path)
 
 	if opt.HasMultipartID {
-		_, err = s.service.AbortMultipartUpload(&s3.AbortMultipartUploadInput{
+		abortInput := &s3.AbortMultipartUploadInput{
 			Bucket:   aws.String(s.name),
 			Key:      aws.String(rp),
 			UploadId: aws.String(opt.MultipartID),
-		})
+		}
+		if opt.HasExceptedBucketOwner {
+			abortInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+		}
+		_, err = s.service.AbortMultipartUpload(abortInput)
 		if err != nil {
 			return
 		}
@@ -84,6 +120,9 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 
 	_, err = s.service.DeleteObject(input)
@@ -141,11 +180,12 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 	input := page.Status.(*objectPageStatus)
 
 	output, err := s.service.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
-		Bucket:            &s.name,
-		Delimiter:         &input.delimiter,
-		MaxKeys:           &input.maxKeys,
-		ContinuationToken: input.getServiceContinuationToken(),
-		Prefix:            &input.prefix,
+		Bucket:              &s.name,
+		Delimiter:           &input.delimiter,
+		MaxKeys:             &input.maxKeys,
+		ContinuationToken:   input.getServiceContinuationToken(),
+		Prefix:              &input.prefix,
+		ExpectedBucketOwner: &s.exceptedBucketOwner,
 	})
 	if err != nil {
 		return err
@@ -185,6 +225,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 		MaxKeys:           &input.maxKeys,
 		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
+		//ExpectedBucketOwner:
 	})
 	if err != nil {
 		return err
@@ -211,11 +252,12 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 	input := page.Status.(*objectPageStatus)
 
 	output, err := s.service.ListMultipartUploadsWithContext(ctx, &s3.ListMultipartUploadsInput{
-		Bucket:         &s.name,
-		KeyMarker:      &input.keyMarker,
-		MaxUploads:     &input.maxKeys,
-		Prefix:         &input.prefix,
-		UploadIdMarker: &input.uploadIdMarker,
+		Bucket:              &s.name,
+		KeyMarker:           &input.keyMarker,
+		MaxUploads:          &input.maxKeys,
+		Prefix:              &input.prefix,
+		UploadIdMarker:      &input.uploadIdMarker,
+		ExpectedBucketOwner: &s.exceptedBucketOwner,
 	})
 	if err != nil {
 		return err
@@ -244,11 +286,12 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	input := page.Status.(*partPageStatus)
 
 	output, err := s.service.ListPartsWithContext(ctx, &s3.ListPartsInput{
-		Bucket:           &s.name,
-		Key:              &input.key,
-		MaxParts:         &input.maxParts,
-		PartNumberMarker: &input.partNumberMarker,
-		UploadId:         &input.uploadId,
+		Bucket:              &s.name,
+		Key:                 &input.key,
+		MaxParts:            &input.maxParts,
+		PartNumberMarker:    &input.partNumberMarker,
+		UploadId:            &input.uploadId,
+		ExpectedBucketOwner: &s.exceptedBucketOwner,
 	})
 	if err != nil {
 		return err
@@ -279,6 +322,18 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
 	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasSseCustomerAlgorithm {
+		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
+	}
+	if opt.HasSseCustomerKey {
+		input.SSECustomerKey = &opt.SseCustomerKey
+	}
+	if opt.HasSseCustomerKeyMd5 {
+		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+	}
 
 	output, err := s.service.GetObjectWithContext(ctx, input)
 	if err != nil {
@@ -300,6 +355,18 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	input := &s3.HeadObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasSseCustomerAlgorithm {
+		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
+	}
+	if opt.HasSseCustomerKey {
+		input.SSECustomerKey = &opt.SseCustomerKey
+	}
+	if opt.HasSseCustomerKeyMd5 {
+		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
 	}
 
 	output, err := s.service.HeadObject(input)
@@ -325,6 +392,9 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := aws.StringValue(output.StorageClass); v != "" {
 		sm[MetadataStorageClass] = v
 	}
+	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+		sm[MetadataServerSideEncryption] = v
+	}
 	o.SetServiceMetadata(sm)
 
 	return o, nil
@@ -349,6 +419,27 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	if opt.HasStorageClass {
 		input.StorageClass = &opt.StorageClass
 	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasBucketKeyEnabled {
+		input.BucketKeyEnabled = &opt.HasBucketKeyEnabled
+	}
+	if opt.HasSseCustomerAlgorithm {
+		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
+	}
+	if opt.HasSseCustomerKey {
+		input.SSECustomerKey = &opt.SseCustomerKey
+	}
+	if opt.HasSseCustomerKeyMd5 {
+		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+	}
+	if opt.HasSseKmsKeyID {
+		input.SSEKMSKeyId = &opt.SseKmsKeyID
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = &opt.ServerSideEncryption
+	}
 
 	_, err = s.service.PutObjectWithContext(ctx, input)
 	if err != nil {
@@ -362,14 +453,28 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		return 0, fmt.Errorf("object is not a part object")
 	}
 
-	_, err = s.service.UploadPartWithContext(ctx, &s3.UploadPartInput{
+	input := &s3.UploadPartInput{
 		Bucket:        &s.name,
 		PartNumber:    aws.Int64(int64(index)),
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
 		ContentLength: &size,
 		Body:          iowrap.SizedReadSeekCloser(r, size),
-	})
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasSseCustomerAlgorithm {
+		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
+	}
+	if opt.HasSseCustomerKey {
+		input.SSECustomerKey = &opt.SseCustomerKey
+	}
+	if opt.HasSseCustomerKeyMd5 {
+		input.SSECustomerKeyMD5 = &opt.SseCustomerKeyMd5
+	}
+
+	_, err = s.service.UploadPartWithContext(ctx, input)
 	if err != nil {
 		return
 	}

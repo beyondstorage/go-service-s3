@@ -40,8 +40,9 @@ type Storage struct {
 	name    string
 	workDir string
 
-	defaultPairs DefaultStoragePairs
-	pairPolicy   typ.PairPolicy
+	defaultPairs        DefaultStoragePairs
+	pairPolicy          typ.PairPolicy
+	exceptedBucketOwner string
 
 	typ.UnimplementedStorager
 	typ.UnimplementedMultiparter
@@ -87,6 +88,26 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
+
+	if opt.HasForcePathStyle {
+		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
+	}
+
+	if opt.HasDisable100Continue {
+		cfg = cfg.WithS3Disable100Continue(opt.Disable100Continue)
+	}
+
+	if opt.HasUseAccelerate {
+		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
+	}
+
+	if opt.HasDisableContentMd5Validation {
+		cfg = cfg.WithS3DisableContentMD5Validation(opt.DisableContentMd5Validation)
+	}
+
+	if opt.HasUseArnRegion {
+		cfg = cfg.WithS3UseARNRegion(opt.UseAccelerate)
+	}
 
 	cp, err := credential.Parse(opt.Credential)
 	if err != nil {
@@ -204,6 +225,9 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 	if opt.HasWorkDir {
 		st.workDir = opt.WorkDir
 	}
+	if opt.HasExceptedBucketOwner {
+		st.exceptedBucketOwner = opt.ExceptedBucketOwner
+	}
 	return st, nil
 }
 
@@ -270,3 +294,9 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 func (s *Storage) newObject(done bool) *typ.Object {
 	return typ.NewObject(s, done)
 }
+
+// All available server side algorithm are listed here.
+const (
+	ServerSideEncryptionAes256 = s3.ServerSideEncryptionAes256
+	ServerSideEncryptionAwsKms = s3.ServerSideEncryptionAwsKms
+)
