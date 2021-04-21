@@ -2,6 +2,8 @@ package s3
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -67,8 +69,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
 	}
 	if opt.HasSseCustomerKey {
-		input.SSECustomerKey = &opt.SseCustomerKey
-		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		customerKey := string(opt.SseCustomerKey)
+		input.SSECustomerKey = &customerKey
+		data := md5.Sum(opt.SseCustomerKey)
+		keyMD5 := hex.EncodeToString(data[:])
 		input.SSECustomerKeyMD5 = &keyMD5
 	}
 	if opt.HasSseKmsKeyID {
@@ -351,8 +355,10 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
 	}
 	if opt.HasSseCustomerKey {
-		input.SSECustomerKey = &opt.SseCustomerKey
-		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		customerKey := string(opt.SseCustomerKey)
+		input.SSECustomerKey = &customerKey
+		data := md5.Sum(opt.SseCustomerKey)
+		keyMD5 := hex.EncodeToString(data[:])
 		input.SSECustomerKeyMD5 = &keyMD5
 	}
 
@@ -384,8 +390,10 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
 	}
 	if opt.HasSseCustomerKey {
-		input.SSECustomerKey = &opt.SseCustomerKey
-		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		customerKey := string(opt.SseCustomerKey)
+		input.SSECustomerKey = &customerKey
+		data := md5.Sum(opt.SseCustomerKey)
+		keyMD5 := hex.EncodeToString(data[:])
 		input.SSECustomerKeyMD5 = &keyMD5
 	}
 
@@ -449,8 +457,10 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
 	}
 	if opt.HasSseCustomerKey {
-		input.SSECustomerKey = &opt.SseCustomerKey
-		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		customerKey := string(opt.SseCustomerKey)
+		input.SSECustomerKey = &customerKey
+		data := md5.Sum(opt.SseCustomerKey)
+		keyMD5 := hex.EncodeToString(data[:])
 		input.SSECustomerKeyMD5 = &keyMD5
 	}
 	if opt.HasSseKmsKeyID {
@@ -487,8 +497,10 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		input.SSECustomerAlgorithm = &opt.SseCustomerAlgorithm
 	}
 	if opt.HasSseCustomerKey {
-		input.SSECustomerKey = &opt.SseCustomerKey
-		keyMD5 := ComputeMD5(opt.SseCustomerKey)
+		customerKey := string(opt.SseCustomerKey)
+		input.SSECustomerKey = &customerKey
+		data := md5.Sum(opt.SseCustomerKey)
+		keyMD5 := hex.EncodeToString(data[:])
 		input.SSECustomerKeyMD5 = &keyMD5
 	}
 

@@ -89,7 +89,7 @@ type = "string"
 description = "specifies the algorithm to use to when encrypting the object"
 
 [pairs.sse_customer_key]
-type = "string"
+type = "byte_array"
 description = "specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object"
 
 [pairs.sse_kms_key_id]

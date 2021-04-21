@@ -132,7 +132,7 @@ func WithSseCustomerAlgorithm(v string) Pair {
 
 // WithSseCustomerKey will apply sse_customer_key value to Options
 // SseCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object
-func WithSseCustomerKey(v string) Pair {
+func WithSseCustomerKey(v []byte) Pair {
 	return Pair{
 		Key:   pairSseCustomerKey,
 		Value: v,
@@ -691,7 +691,7 @@ type pairStorageCreateMultipart struct {
 	HasSseCustomerAlgorithm bool
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
-	SseCustomerKey          string
+	SseCustomerKey          []byte
 	HasSseKmsKeyID          bool
 	SseKmsKeyID             string
 	// Generated pairs
@@ -721,7 +721,7 @@ func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreat
 			result.SseCustomerAlgorithm = v.Value.(string)
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
-			result.SseCustomerKey = v.Value.(string)
+			result.SseCustomerKey = v.Value.([]byte)
 		case pairSseKmsKeyID:
 			result.HasSseKmsKeyID = true
 			result.SseKmsKeyID = v.Value.(string)
@@ -908,7 +908,7 @@ type pairStorageRead struct {
 	HasSseCustomerAlgorithm bool
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
-	SseCustomerKey          string
+	SseCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -939,7 +939,7 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 			result.SseCustomerAlgorithm = v.Value.(string)
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
-			result.SseCustomerKey = v.Value.(string)
+			result.SseCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 
@@ -964,7 +964,7 @@ type pairStorageStat struct {
 	HasSseCustomerAlgorithm bool
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
-	SseCustomerKey          string
+	SseCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -986,7 +986,7 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 			result.SseCustomerAlgorithm = v.Value.(string)
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
-			result.SseCustomerKey = v.Value.(string)
+			result.SseCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 
@@ -1021,7 +1021,7 @@ type pairStorageWrite struct {
 	HasSseCustomerAlgorithm bool
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
-	SseCustomerKey          string
+	SseCustomerKey          []byte
 	HasSseKmsKeyID          bool
 	SseKmsKeyID             string
 	HasStorageClass         bool
@@ -1062,7 +1062,7 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 			result.SseCustomerAlgorithm = v.Value.(string)
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
-			result.SseCustomerKey = v.Value.(string)
+			result.SseCustomerKey = v.Value.([]byte)
 		case pairSseKmsKeyID:
 			result.HasSseKmsKeyID = true
 			result.SseKmsKeyID = v.Value.(string)
@@ -1093,7 +1093,7 @@ type pairStorageWriteMultipart struct {
 	HasSseCustomerAlgorithm bool
 	SseCustomerAlgorithm    string
 	HasSseCustomerKey       bool
-	SseCustomerKey          string
+	SseCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -1115,7 +1115,7 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 			result.SseCustomerAlgorithm = v.Value.(string)
 		case pairSseCustomerKey:
 			result.HasSseCustomerKey = true
-			result.SseCustomerKey = v.Value.(string)
+			result.SseCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 
