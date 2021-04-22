@@ -22,6 +22,7 @@ jobs:
 
       - name: Test
         env:
+          STORAGE_S3_INTEGRATION_TEST: ${{ secrets.STORAGE_INTEGRATION_TEST }}
           STORAGE_S3_CREDENTIAL: ${{ secrets.STORAGE_S3_CREDENTIAL }}
           STORAGE_S3_NAME: ${{ secrets.STORAGE_S3_NAME }}
           STORAGE_S3_LOCATION: ${{ secrets.STORAGE_S3_LOCATION }}
