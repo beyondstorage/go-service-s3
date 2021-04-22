@@ -32,8 +32,7 @@ test:
 	go tool cover -html="coverage.txt" -o "coverage.html"
 
 integration_test:
-	go clean -testcache ./tests
-	go test -tags integration_test -race -covermode=atomic -v ./tests
+	go test -count=1 -race -covermode=atomic -v ./tests
 
 tidy:
 	go mod tidy
