@@ -2,11 +2,10 @@ package s3
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -67,16 +66,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm = &opt.ServerSideEncryptionCustomerAlgorithm
-	}
-	if opt.HasServerSideEncryptionCustomerKey {
-		encodeCustomerKey := base64.StdEncoding.EncodeToString(opt.ServerSideEncryptionCustomerKey)
-		input.SSECustomerKey = &encodeCustomerKey
-
-		data := md5.Sum(opt.ServerSideEncryptionCustomerKey)
-		keyMD5 := hex.EncodeToString(data[:])
-		encodedCustomerKeyMD5 := base64.StdEncoding.EncodeToString([]byte(keyMD5))
-		input.SSECustomerKeyMD5 = &encodedCustomerKeyMD5
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
 	}
 	if opt.HasServerSideEncryptionAwsKmsKeyID {
 		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
@@ -116,6 +109,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
 		sm[MetadataServerSideEncryptionCustomerKeyMd5] = v
 	}
+	if output.BucketKeyEnabled != nil {
+		sm[MetadataServerSideEncryptionBucketKeyEnabled] = strconv.FormatBool(aws.BoolValue(output.BucketKeyEnabled))
+	}
+
 	o.SetServiceMetadata(sm)
 
 	return o, nil
@@ -371,16 +368,10 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm = &opt.ServerSideEncryptionCustomerAlgorithm
-	}
-	if opt.HasServerSideEncryptionCustomerKey {
-		encodeCustomerKey := base64.StdEncoding.EncodeToString(opt.ServerSideEncryptionCustomerKey)
-		input.SSECustomerKey = &encodeCustomerKey
-
-		data := md5.Sum(opt.ServerSideEncryptionCustomerKey)
-		keyMD5 := hex.EncodeToString(data[:])
-		encodeCustomerKeyMD5 := base64.StdEncoding.EncodeToString([]byte(keyMD5))
-		input.SSECustomerKeyMD5 = &encodeCustomerKeyMD5
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
 	}
 
 	output, err := s.service.GetObjectWithContext(ctx, input)
@@ -408,16 +399,10 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm = &opt.ServerSideEncryptionCustomerAlgorithm
-	}
-	if opt.HasServerSideEncryptionCustomerKey {
-		encodeCustomerKey := base64.StdEncoding.EncodeToString(opt.ServerSideEncryptionCustomerKey)
-		input.SSECustomerKey = &encodeCustomerKey
-
-		data := md5.Sum(opt.ServerSideEncryptionCustomerKey)
-		keyMD5 := hex.EncodeToString(data[:])
-		encodeCustomerKeyMD5 := base64.StdEncoding.EncodeToString([]byte(keyMD5))
-		input.SSECustomerKeyMD5 = &encodeCustomerKeyMD5
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
 	}
 
 	output, err := s.service.HeadObject(input)
@@ -455,6 +440,9 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
 		sm[MetadataServerSideEncryptionCustomerKeyMd5] = v
 	}
+	if output.BucketKeyEnabled != nil {
+		sm[MetadataServerSideEncryptionBucketKeyEnabled] = strconv.FormatBool(aws.BoolValue(output.BucketKeyEnabled))
+	}
 	o.SetServiceMetadata(sm)
 
 	return o, nil
@@ -486,16 +474,10 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm = &opt.ServerSideEncryptionCustomerAlgorithm
-	}
-	if opt.HasServerSideEncryptionCustomerKey {
-		encodeCustomerKey := base64.StdEncoding.EncodeToString(opt.ServerSideEncryptionCustomerKey)
-		input.SSECustomerKey = &encodeCustomerKey
-
-		data := md5.Sum(opt.ServerSideEncryptionCustomerKey)
-		keyMD5 := hex.EncodeToString(data[:])
-		encodeCustomerKeyMD5 := base64.StdEncoding.EncodeToString([]byte(keyMD5))
-		input.SSECustomerKeyMD5 = &encodeCustomerKeyMD5
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
 	}
 	if opt.HasServerSideEncryptionAwsKmsKeyID {
 		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
@@ -532,16 +514,10 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm = &opt.ServerSideEncryptionCustomerAlgorithm
-	}
-	if opt.HasServerSideEncryptionCustomerKey {
-		encodeCustomerKey := base64.StdEncoding.EncodeToString(opt.ServerSideEncryptionCustomerKey)
-		input.SSECustomerKey = &encodeCustomerKey
-
-		data := md5.Sum(opt.ServerSideEncryptionCustomerKey)
-		keyMD5 := hex.EncodeToString(data[:])
-		encodeCustomerKeyMD5 := base64.StdEncoding.EncodeToString([]byte(keyMD5))
-		input.SSECustomerKeyMD5 = &encodeCustomerKeyMD5
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
 	}
 
 	_, err = s.service.UploadPartWithContext(ctx, input)

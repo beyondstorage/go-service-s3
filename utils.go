@@ -1,6 +1,8 @@
 package s3
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -292,3 +294,14 @@ const (
 	ServerSideEncryptionAes256 = s3.ServerSideEncryptionAes256
 	ServerSideEncryptionAwsKms = s3.ServerSideEncryptionAwsKms
 )
+
+func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
+	if len(key) != 256 {
+		err = ErrInvalidEncryptionCustomerKey
+		return
+	}
+	kB64 := base64.StdEncoding.EncodeToString(key)
+	kMD5 := md5.Sum(key)
+	kMD5B64 := base64.StdEncoding.EncodeToString(kMD5[:])
+	return &algo, &kB64, &kMD5B64, nil
+}

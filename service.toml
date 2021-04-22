@@ -121,3 +121,6 @@ type = "string"
 
 [infos.object.meta.server-side-encryption-customer-key-md5]
 type = "string"
+
+[infos.object.meta.server-side-encryption-bucket-key-enabled]
+type = "string"

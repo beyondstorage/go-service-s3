@@ -59,6 +59,8 @@ const (
 
 	MetadataServerSideEncryptionAwsKmsKeyID = "s3-server-side-encryption-aws-kms-key-id"
 
+	MetadataServerSideEncryptionBucketKeyEnabled = "s3-server-side-encryption-bucket-key-enabled"
+
 	MetadataServerSideEncryptionContext = "s3-server-side-encryption-context"
 
 	MetadataServerSideEncryptionCustomerAlgorithm = "s3-server-side-encryption-customer-algorithm"
