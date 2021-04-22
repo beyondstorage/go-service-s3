@@ -3,6 +3,6 @@ package s3
 import "errors"
 
 var (
-	// ErrInvalidEncryptionCustomerKey will be returned while encryption customer key is invalid.
-	ErrInvalidEncryptionCustomerKey = errors.New("invalid encryption customer key")
+	// ErrServerSideEncryptionCustomerKey will be returned while server-side encryption customer key is invalid.
+	ErrServerSideEncryptionCustomerKey = errors.New("invalid server-side encryption customer key")
 )
