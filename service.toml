@@ -86,11 +86,11 @@ description = "the account ID of the excepted bucket owner"
 
 [pairs.server_side_encryption_customer_algorithm]
 type = "string"
-description = "specifies the algorithm to use to when encrypting the object. The head value must be `AES256`."
+description = "specifies the algorithm to use to when encrypting the object. The header value must be `AES256`."
 
 [pairs.server_side_encryption_customer_key]
 type = "byte_array"
-description = "specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object. The key must be base64 encoded."
+description = "specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key."
 
 [pairs.server_side_encryption_aws_kms_key_id]
 type = "string"

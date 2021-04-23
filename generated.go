@@ -41,9 +41,9 @@ const (
 	pairServerSideEncryptionBucketKeyEnabled = "s3_server_side_encryption_bucket_key_enabled"
 	// ServerSideEncryptionContext specifies the AWS KMS Encryption Context to use for object encryption. The value of this header is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
 	pairServerSideEncryptionContext = "s3_server_side_encryption_context"
-	// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The head value must be `AES256`.
+	// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The header value must be `AES256`.
 	pairServerSideEncryptionCustomerAlgorithm = "s3_server_side_encryption_customer_algorithm"
-	// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object. The key must be base64 encoded.
+	// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key.
 	pairServerSideEncryptionCustomerKey = "s3_server_side_encryption_customer_key"
 	// StorageClass
 	pairStorageClass = "s3_storage_class"
@@ -152,7 +152,7 @@ func WithServerSideEncryptionContext(v string) Pair {
 }
 
 // WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm value to Options
-// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The head value must be `AES256`.
+// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The header value must be `AES256`.
 func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
 	return Pair{
 		Key:   pairServerSideEncryptionCustomerAlgorithm,
@@ -161,7 +161,7 @@ func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
 }
 
 // WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value to Options
-// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object. The key must be base64 encoded.
+// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key.
 func WithServerSideEncryptionCustomerKey(v []byte) Pair {
 	return Pair{
 		Key:   pairServerSideEncryptionCustomerKey,
