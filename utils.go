@@ -1,6 +1,8 @@
 package s3
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -87,6 +89,22 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
+
+	if opt.HasForcePathStyle {
+		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
+	}
+
+	if opt.HasDisable100Continue {
+		cfg = cfg.WithS3Disable100Continue(opt.Disable100Continue)
+	}
+
+	if opt.HasUseAccelerate {
+		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
+	}
+
+	if opt.HasUseArnRegion {
+		cfg = cfg.WithS3UseARNRegion(opt.UseAccelerate)
+	}
 
 	cp, err := credential.Parse(opt.Credential)
 	if err != nil {
@@ -269,4 +287,21 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 
 func (s *Storage) newObject(done bool) *typ.Object {
 	return typ.NewObject(s, done)
+}
+
+// All available server side algorithm are listed here.
+const (
+	ServerSideEncryptionAes256 = s3.ServerSideEncryptionAes256
+	ServerSideEncryptionAwsKms = s3.ServerSideEncryptionAwsKms
+)
+
+func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
+	if len(key) != 32 {
+		err = ErrServerSideEncryptionCustomerKey
+		return
+	}
+	kB64 := base64.StdEncoding.EncodeToString(key)
+	kMD5 := md5.Sum(key)
+	kMD5B64 := base64.StdEncoding.EncodeToString(kMD5[:])
+	return &algo, &kB64, &kMD5B64, nil
 }

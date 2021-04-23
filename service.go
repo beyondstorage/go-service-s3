@@ -36,6 +36,9 @@ func (s *Service) delete(ctx context.Context, name string, opt pairServiceDelete
 	input := &s3.DeleteBucketInput{
 		Bucket: aws.String(name),
 	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
 
 	_, err = s.service.DeleteBucket(input)
 	if err != nil {

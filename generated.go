@@ -27,12 +27,46 @@ const (
 	pairDefaultServicePairs = "s3_default_service_pairs"
 	// DefaultStoragePairs set default pairs for storager actions
 	pairDefaultStoragePairs = "s3_default_storage_pairs"
+	// Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
+	pairDisable100Continue = "s3_disable_100_continue"
+	// ExceptedBucketOwner the account ID of the excepted bucket owner
+	pairExceptedBucketOwner = "s3_excepted_bucket_owner"
+	// ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
+	pairForcePathStyle = "s3_force_path_style"
+	// ServerSideEncryption the server-side encryption algorithm used when storing this object in Amazon
+	pairServerSideEncryption = "s3_server_side_encryption"
+	// ServerSideEncryptionAwsKmsKeyID specifies the AWS KMS key ID to use for object encryption
+	pairServerSideEncryptionAwsKmsKeyID = "s3_server_side_encryption_aws_kms_key_id"
+	// ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
+	pairServerSideEncryptionBucketKeyEnabled = "s3_server_side_encryption_bucket_key_enabled"
+	// ServerSideEncryptionContext specifies the AWS KMS Encryption Context to use for object encryption. The value of this header is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
+	pairServerSideEncryptionContext = "s3_server_side_encryption_context"
+	// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The head value must be `AES256`.
+	pairServerSideEncryptionCustomerAlgorithm = "s3_server_side_encryption_customer_algorithm"
+	// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object. The key must be base64 encoded.
+	pairServerSideEncryptionCustomerKey = "s3_server_side_encryption_customer_key"
 	// StorageClass
 	pairStorageClass = "s3_storage_class"
+	// UseAccelerate set this to `true` to enable S3 Accelerate feature
+	pairUseAccelerate = "s3_use_accelerate"
+	// UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
+	pairUseArnRegion = "s3_use_arn_region"
 )
 
 // Service available metadata.
 const (
+	MetadataServerSideEncryption = "s3-server-side-encryption"
+
+	MetadataServerSideEncryptionAwsKmsKeyID = "s3-server-side-encryption-aws-kms-key-id"
+
+	MetadataServerSideEncryptionBucketKeyEnabled = "s3-server-side-encryption-bucket-key-enabled"
+
+	MetadataServerSideEncryptionContext = "s3-server-side-encryption-context"
+
+	MetadataServerSideEncryptionCustomerAlgorithm = "s3-server-side-encryption-customer-algorithm"
+
+	MetadataServerSideEncryptionCustomerKeyMd5 = "s3-server-side-encryption-customer-key-md5"
+
 	MetadataStorageClass = "s3-storage-class"
 )
 
@@ -54,11 +88,110 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	}
 }
 
+// WithDisable100Continue will apply disable_100_continue value to Options
+// Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
+func WithDisable100Continue(v bool) Pair {
+	return Pair{
+		Key:   pairDisable100Continue,
+		Value: v,
+	}
+}
+
+// WithExceptedBucketOwner will apply excepted_bucket_owner value to Options
+// ExceptedBucketOwner the account ID of the excepted bucket owner
+func WithExceptedBucketOwner(v string) Pair {
+	return Pair{
+		Key:   pairExceptedBucketOwner,
+		Value: v,
+	}
+}
+
+// WithForcePathStyle will apply force_path_style value to Options
+// ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
+func WithForcePathStyle(v bool) Pair {
+	return Pair{
+		Key:   pairForcePathStyle,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryption will apply server_side_encryption value to Options
+// ServerSideEncryption the server-side encryption algorithm used when storing this object in Amazon
+func WithServerSideEncryption(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryption,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionAwsKmsKeyID will apply server_side_encryption_aws_kms_key_id value to Options
+// ServerSideEncryptionAwsKmsKeyID specifies the AWS KMS key ID to use for object encryption
+func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionAwsKmsKeyID,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options
+// ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
+func WithServerSideEncryptionBucketKeyEnabled(v bool) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionBucketKeyEnabled,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionContext will apply server_side_encryption_context value to Options
+// ServerSideEncryptionContext specifies the AWS KMS Encryption Context to use for object encryption. The value of this header is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
+func WithServerSideEncryptionContext(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionContext,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm value to Options
+// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The head value must be `AES256`.
+func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionCustomerAlgorithm,
+		Value: v,
+	}
+}
+
+// WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value to Options
+// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to decrypt the source object. The key must be base64 encoded.
+func WithServerSideEncryptionCustomerKey(v []byte) Pair {
+	return Pair{
+		Key:   pairServerSideEncryptionCustomerKey,
+		Value: v,
+	}
+}
+
 // WithStorageClass will apply storage_class value to Options
 // StorageClass
 func WithStorageClass(v string) Pair {
 	return Pair{
 		Key:   pairStorageClass,
+		Value: v,
+	}
+}
+
+// WithUseAccelerate will apply use_accelerate value to Options
+// UseAccelerate set this to `true` to enable S3 Accelerate feature
+func WithUseAccelerate(v bool) Pair {
+	return Pair{
+		Key:   pairUseAccelerate,
+		Value: v,
+	}
+}
+
+// WithUseArnRegion will apply use_arn_region value to Options
+// UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
+func WithUseArnRegion(v bool) Pair {
+	return Pair{
+		Key:   pairUseArnRegion,
 		Value: v,
 	}
 }
@@ -73,10 +206,18 @@ type pairServiceNew struct {
 	// Optional pairs
 	HasDefaultServicePairs bool
 	DefaultServicePairs    DefaultServicePairs
+	HasDisable100Continue  bool
+	Disable100Continue     bool
 	HasEndpoint            bool
 	Endpoint               string
+	HasForcePathStyle      bool
+	ForcePathStyle         bool
 	HasHTTPClientOptions   bool
 	HTTPClientOptions      *httpclient.Options
+	HasUseAccelerate       bool
+	UseAccelerate          bool
+	HasUseArnRegion        bool
+	UseArnRegion           bool
 	// Generated pairs
 }
 
@@ -102,18 +243,42 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasDefaultServicePairs = true
 			result.DefaultServicePairs = v.Value.(DefaultServicePairs)
+		case pairDisable100Continue:
+			if result.HasDisable100Continue {
+				continue
+			}
+			result.HasDisable100Continue = true
+			result.Disable100Continue = v.Value.(bool)
 		case "endpoint":
 			if result.HasEndpoint {
 				continue
 			}
 			result.HasEndpoint = true
 			result.Endpoint = v.Value.(string)
+		case pairForcePathStyle:
+			if result.HasForcePathStyle {
+				continue
+			}
+			result.HasForcePathStyle = true
+			result.ForcePathStyle = v.Value.(bool)
 		case "http_client_options":
 			if result.HasHTTPClientOptions {
 				continue
 			}
 			result.HasHTTPClientOptions = true
 			result.HTTPClientOptions = v.Value.(*httpclient.Options)
+		case pairUseAccelerate:
+			if result.HasUseAccelerate {
+				continue
+			}
+			result.HasUseAccelerate = true
+			result.UseAccelerate = v.Value.(bool)
+		case pairUseArnRegion:
+			if result.HasUseArnRegion {
+				continue
+			}
+			result.HasUseArnRegion = true
+			result.UseArnRegion = v.Value.(bool)
 			// Generated pairs
 		}
 	}
@@ -176,8 +341,10 @@ type pairServiceDelete struct {
 
 	// Required pairs
 	// Optional pairs
-	HasLocation bool
-	Location    string
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
+	HasLocation            bool
+	Location               string
 	// Generated pairs
 }
 
@@ -191,6 +358,9 @@ func (s *Service) parsePairServiceDelete(opts []Pair) (pairServiceDelete, error)
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "location":
 			result.HasLocation = true
 			result.Location = v.Value.(string)
@@ -464,6 +634,8 @@ type pairStorageCompleteMultipart struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
 	// Generated pairs
 }
 
@@ -477,6 +649,9 @@ func (s *Storage) parsePairStorageCompleteMultipart(opts []Pair) (pairStorageCom
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		// Generated pairs
 		default:
 
@@ -528,6 +703,20 @@ type pairStorageCreateMultipart struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasServerSideEncryption                  bool
+	ServerSideEncryption                     string
+	HasServerSideEncryptionAwsKmsKeyID       bool
+	ServerSideEncryptionAwsKmsKeyID          string
+	HasServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionBucketKeyEnabled     bool
+	HasServerSideEncryptionContext           bool
+	ServerSideEncryptionContext              string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -541,6 +730,27 @@ func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreat
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+		case pairServerSideEncryption:
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+		case pairServerSideEncryptionAwsKmsKeyID:
+			result.HasServerSideEncryptionAwsKmsKeyID = true
+			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
+		case pairServerSideEncryptionBucketKeyEnabled:
+			result.HasServerSideEncryptionBucketKeyEnabled = true
+			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
+		case pairServerSideEncryptionContext:
+			result.HasServerSideEncryptionContext = true
+			result.ServerSideEncryptionContext = v.Value.(string)
+		case pairServerSideEncryptionCustomerAlgorithm:
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+		case pairServerSideEncryptionCustomerKey:
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 
@@ -560,8 +770,10 @@ type pairStorageDelete struct {
 
 	// Required pairs
 	// Optional pairs
-	HasMultipartID bool
-	MultipartID    string
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
+	HasMultipartID         bool
+	MultipartID            string
 	// Generated pairs
 }
 
@@ -575,6 +787,9 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "multipart_id":
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
@@ -597,8 +812,10 @@ type pairStorageList struct {
 
 	// Required pairs
 	// Optional pairs
-	HasListMode bool
-	ListMode    ListMode
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
+	HasListMode            bool
+	ListMode               ListMode
 	// Generated pairs
 }
 
@@ -612,6 +829,9 @@ func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "list_mode":
 			result.HasListMode = true
 			result.ListMode = v.Value.(ListMode)
@@ -634,6 +854,8 @@ type pairStorageListMultipart struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
 	// Generated pairs
 }
 
@@ -647,6 +869,9 @@ func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMul
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		// Generated pairs
 		default:
 
@@ -698,12 +923,18 @@ type pairStorageRead struct {
 
 	// Required pairs
 	// Optional pairs
-	HasIoCallback bool
-	IoCallback    func([]byte)
-	HasOffset     bool
-	Offset        int64
-	HasSize       bool
-	Size          int64
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasIoCallback                            bool
+	IoCallback                               func([]byte)
+	HasOffset                                bool
+	Offset                                   int64
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
+	HasSize                                  bool
+	Size                                     int64
 	// Generated pairs
 }
 
@@ -717,12 +948,21 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "io_callback":
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
 		case "offset":
 			result.HasOffset = true
 			result.Offset = v.Value.(int64)
+		case pairServerSideEncryptionCustomerAlgorithm:
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+		case pairServerSideEncryptionCustomerKey:
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 		case "size":
 			result.HasSize = true
 			result.Size = v.Value.(int64)
@@ -745,6 +985,12 @@ type pairStorageStat struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -758,6 +1004,15 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+		case pairServerSideEncryptionCustomerAlgorithm:
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+		case pairServerSideEncryptionCustomerKey:
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 
@@ -777,14 +1032,28 @@ type pairStorageWrite struct {
 
 	// Required pairs
 	// Optional pairs
-	HasContentMd5   bool
-	ContentMd5      string
-	HasContentType  bool
-	ContentType     string
-	HasIoCallback   bool
-	IoCallback      func([]byte)
-	HasStorageClass bool
-	StorageClass    string
+	HasContentMd5                            bool
+	ContentMd5                               string
+	HasContentType                           bool
+	ContentType                              string
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasIoCallback                            bool
+	IoCallback                               func([]byte)
+	HasServerSideEncryption                  bool
+	ServerSideEncryption                     string
+	HasServerSideEncryptionAwsKmsKeyID       bool
+	ServerSideEncryptionAwsKmsKeyID          string
+	HasServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionBucketKeyEnabled     bool
+	HasServerSideEncryptionContext           bool
+	ServerSideEncryptionContext              string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
+	HasStorageClass                          bool
+	StorageClass                             string
 	// Generated pairs
 }
 
@@ -804,9 +1073,30 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 		case "content_type":
 			result.HasContentType = true
 			result.ContentType = v.Value.(string)
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
 		case "io_callback":
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
+		case pairServerSideEncryption:
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+		case pairServerSideEncryptionAwsKmsKeyID:
+			result.HasServerSideEncryptionAwsKmsKeyID = true
+			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
+		case pairServerSideEncryptionBucketKeyEnabled:
+			result.HasServerSideEncryptionBucketKeyEnabled = true
+			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
+		case pairServerSideEncryptionContext:
+			result.HasServerSideEncryptionContext = true
+			result.ServerSideEncryptionContext = v.Value.(string)
+		case pairServerSideEncryptionCustomerAlgorithm:
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+		case pairServerSideEncryptionCustomerKey:
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 		case pairStorageClass:
 			result.HasStorageClass = true
 			result.StorageClass = v.Value.(string)
@@ -829,6 +1119,12 @@ type pairStorageWriteMultipart struct {
 
 	// Required pairs
 	// Optional pairs
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
 	// Generated pairs
 }
 
@@ -842,6 +1138,15 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 		switch v.Key {
 		// Required pairs
 		// Optional pairs
+		case pairExceptedBucketOwner:
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+		case pairServerSideEncryptionCustomerAlgorithm:
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+		case pairServerSideEncryptionCustomerKey:
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 		// Generated pairs
 		default:
 

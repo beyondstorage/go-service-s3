@@ -15,6 +15,8 @@ type objectPageStatus struct {
 	// Only used for part object
 	keyMarker      string
 	uploadIdMarker string
+
+	expectedBucketOwner string
 }
 
 // getServiceContinuationToken equals aws.String, but return nil while empty.
@@ -51,6 +53,8 @@ type partPageStatus struct {
 	maxParts         int64
 	partNumberMarker int64
 	uploadId         string
+
+	expectedBucketOwner string
 }
 
 func (i *partPageStatus) ContinuationToken() string {
