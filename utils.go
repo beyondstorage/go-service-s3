@@ -296,7 +296,7 @@ const (
 )
 
 func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
-	if len(key) != 256 {
+	if len(key) != 32 {
 		err = ErrServerSideEncryptionCustomerKey
 		return
 	}
