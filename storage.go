@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"strconv"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"io"
 
 	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
 	. "github.com/aos-dev/go-storage/v3/types"
@@ -93,24 +91,24 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.StringValue(output.UploadId))
 
-	sm := make(map[string]string)
+	var sm ObjectMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
-		sm[MetadataServerSideEncryption] = v
+		sm.ServerSideEncryption = v
 	}
 	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
-		sm[MetadataServerSideEncryptionAwsKmsKeyID] = v
+		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
 	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
-		sm[MetadataServerSideEncryptionContext] = v
+		sm.ServerSideEncryptionContext = v
 	}
 	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
-		sm[MetadataServerSideEncryptionCustomerAlgorithm] = v
+		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
 	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
-		sm[MetadataServerSideEncryptionCustomerKeyMd5] = v
+		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if output.BucketKeyEnabled != nil {
-		sm[MetadataServerSideEncryptionBucketKeyEnabled] = strconv.FormatBool(aws.BoolValue(output.BucketKeyEnabled))
+		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
 
 	o.SetServiceMetadata(sm)
@@ -424,24 +422,25 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if output.ETag != nil {
 		o.SetEtag(*output.ETag)
 	}
-	sm := make(map[string]string)
+
+	var sm ObjectMetadata
 	if v := aws.StringValue(output.StorageClass); v != "" {
-		sm[MetadataStorageClass] = v
+		sm.StorageClass = v
 	}
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
-		sm[MetadataServerSideEncryption] = v
+		sm.ServerSideEncryption = v
 	}
 	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
-		sm[MetadataServerSideEncryptionAwsKmsKeyID] = v
+		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
 	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
-		sm[MetadataServerSideEncryptionCustomerAlgorithm] = v
+		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
 	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
-		sm[MetadataServerSideEncryptionCustomerKeyMd5] = v
+		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if output.BucketKeyEnabled != nil {
-		sm[MetadataServerSideEncryptionBucketKeyEnabled] = strconv.FormatBool(aws.BoolValue(output.BucketKeyEnabled))
+		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
 	o.SetServiceMetadata(sm)
 

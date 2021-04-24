@@ -123,4 +123,4 @@ type = "string"
 type = "string"
 
 [infos.object.meta.server-side-encryption-bucket-key-enabled]
-type = "string"
+type = "bool"

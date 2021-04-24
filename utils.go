@@ -276,9 +276,9 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 		o.SetEtag(*v.ETag)
 	}
 
-	sm := make(map[string]string)
+	var sm ObjectMetadata
 	if value := aws.StringValue(v.StorageClass); value != "" {
-		sm[MetadataStorageClass] = value
+		sm.StorageClass = value
 	}
 	o.SetServiceMetadata(sm)
 
