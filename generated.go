@@ -53,22 +53,42 @@ const (
 	pairUseArnRegion = "s3_use_arn_region"
 )
 
-// Service available metadata.
-const (
-	MetadataServerSideEncryption = "s3-server-side-encryption"
+// ObjectMetadata stores service metadata for object.
+type ObjectMetadata struct {
+	// ServerSideEncryption
+	ServerSideEncryption string
+	// ServerSideEncryptionAwsKmsKeyID
+	ServerSideEncryptionAwsKmsKeyID string
+	// ServerSideEncryptionBucketKeyEnabled
+	ServerSideEncryptionBucketKeyEnabled bool
+	// ServerSideEncryptionContext
+	ServerSideEncryptionContext string
+	// ServerSideEncryptionCustomerAlgorithm
+	ServerSideEncryptionCustomerAlgorithm string
+	// ServerSideEncryptionCustomerKeyMd5
+	ServerSideEncryptionCustomerKeyMd5 string
+	// StorageClass
+	StorageClass string
+}
 
-	MetadataServerSideEncryptionAwsKmsKeyID = "s3-server-side-encryption-aws-kms-key-id"
+// GetObjectMetadata will get ObjectMetadata from Object.
+//
+// - This function should not be called by service implementer.
+// - The returning ObjectMetadata is read only and should not be modified.
+func GetObjectMetadata(o *Object) ObjectMetadata {
+	om, ok := o.GetServiceMetadata()
+	if ok {
+		return om.(ObjectMetadata)
+	}
+	return ObjectMetadata{}
+}
 
-	MetadataServerSideEncryptionBucketKeyEnabled = "s3-server-side-encryption-bucket-key-enabled"
-
-	MetadataServerSideEncryptionContext = "s3-server-side-encryption-context"
-
-	MetadataServerSideEncryptionCustomerAlgorithm = "s3-server-side-encryption-customer-algorithm"
-
-	MetadataServerSideEncryptionCustomerKeyMd5 = "s3-server-side-encryption-customer-key-md5"
-
-	MetadataStorageClass = "s3-storage-class"
-)
+// setObjectMetadata will set ObjectMetadata into Object.
+//
+// - This function should only be called once, please make sure all data has been written before set.
+func setObjectMetadata(o *Object, om ObjectMetadata) {
+	o.SetServiceMetadata(om)
+}
 
 // WithDefaultServicePairs will apply default_service_pairs value to Options
 // DefaultServicePairs set default pairs for service actions
