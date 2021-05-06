@@ -171,7 +171,7 @@ const (
 func formatError(err error) error {
 	e, ok := err.(awserr.RequestFailure)
 	if !ok {
-		return err
+		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 	}
 
 	switch e.Code() {
@@ -182,7 +182,7 @@ func formatError(err error) error {
 		return fmt.Errorf("%w: %v", services.ErrPermissionDenied, err)
 	}
 
-	return err
+	return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 }
 
 func newS3Service(sess *session.Session, cfgs ...*aws.Config) (srv *s3.S3) {
