@@ -3,18 +3,19 @@ package s3
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"io"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
+
 	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
+	"github.com/aos-dev/go-storage/v3/services"
 	. "github.com/aos-dev/go-storage/v3/types"
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
 	if o.Mode&ModePart == 0 {
-		return fmt.Errorf("object is not a part object")
+		return services.ErrObjectNotPart
 	}
 
 	upload := &s3.CompletedMultipartUpload{}
@@ -170,7 +171,7 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	case opt.ListMode.IsPrefix():
 		nextFn = s.nextObjectPageByPrefix
 	default:
-		return nil, fmt.Errorf("invalid list mode")
+		return nil, services.ErrInvalidListMode
 	}
 
 	return NewObjectIterator(ctx, nextFn, input), nil
@@ -178,7 +179,7 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 
 func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageListMultipart) (pi *PartIterator, err error) {
 	if o.Mode&ModePart == 0 {
-		return nil, fmt.Errorf("object is not a part object")
+		return nil, services.ErrObjectNotPart
 	}
 
 	input := &partPageStatus{
@@ -498,7 +499,7 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, err error) {
 	if o.Mode&ModePart == 0 {
-		return 0, fmt.Errorf("object is not a part object")
+		return 0, services.ErrObjectNotPart
 	}
 
 	input := &s3.UploadPartInput{
