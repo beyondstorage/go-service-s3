@@ -180,9 +180,9 @@ func formatError(err error) error {
 		return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
 	case "AccessDenied":
 		return fmt.Errorf("%w: %v", services.ErrPermissionDenied, err)
+	default:
+		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 	}
-
-	return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 }
 
 func newS3Service(sess *session.Session, cfgs ...*aws.Config) (srv *s3.S3) {
