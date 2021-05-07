@@ -76,7 +76,7 @@ func NewStorager(pairs ...typ.Pair) (typ.Storager, error) {
 func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	defer func() {
 		if err != nil {
-			err = &services.InitError{Op: "new_servicer", Type: Type, Err: err, Pairs: pairs}
+			err = services.InitError{Op: "new_servicer", Type: Type, Err: err, Pairs: pairs}
 		}
 	}()
 
@@ -118,7 +118,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	case credential.ProtocolEnv:
 		cfg = cfg.WithCredentials(credentials.NewEnvCredentials())
 	default:
-		return nil, services.NewPairUnsupportedError(ps.WithCredential(opt.Credential))
+		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 
 	sess, err := session.NewSession(cfg)
@@ -141,7 +141,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, err error) {
 	defer func() {
 		if err != nil {
-			err = &services.InitError{Op: "new_storager", Type: Type, Err: err, Pairs: pairs}
+			err = services.InitError{Op: "new_storager", Type: Type, Err: err, Pairs: pairs}
 		}
 	}()
 
@@ -230,7 +230,7 @@ func (s *Service) formatError(op string, err error, name string) error {
 		return nil
 	}
 
-	return &services.ServiceError{
+	return services.ServiceError{
 		Op:       op,
 		Err:      formatError(err),
 		Servicer: s,
@@ -255,7 +255,7 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 		return nil
 	}
 
-	return &services.StorageError{
+	return services.StorageError{
 		Op:       op,
 		Err:      formatError(err),
 		Storager: s,
