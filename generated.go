@@ -90,7 +90,8 @@ func setObjectMetadata(o *Object, om ObjectMetadata) {
 	o.SetServiceMetadata(om)
 }
 
-// WithDefaultServicePairs will apply default_service_pairs value to Options
+// WithDefaultServicePairs will apply default_service_pairs value to Options.
+//
 // DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	return Pair{
@@ -99,7 +100,8 @@ func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	}
 }
 
-// WithDefaultStoragePairs will apply default_storage_pairs value to Options
+// WithDefaultStoragePairs will apply default_storage_pairs value to Options.
+//
 // DefaultStoragePairs set default pairs for storager actions
 func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	return Pair{
@@ -108,7 +110,8 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 	}
 }
 
-// WithDisable100Continue will apply disable_100_continue value to Options
+// WithDisable100Continue will apply disable_100_continue value to Options.
+//
 // Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
 func WithDisable100Continue(v bool) Pair {
 	return Pair{
@@ -117,7 +120,8 @@ func WithDisable100Continue(v bool) Pair {
 	}
 }
 
-// WithExceptedBucketOwner will apply excepted_bucket_owner value to Options
+// WithExceptedBucketOwner will apply excepted_bucket_owner value to Options.
+//
 // ExceptedBucketOwner the account ID of the excepted bucket owner
 func WithExceptedBucketOwner(v string) Pair {
 	return Pair{
@@ -126,7 +130,8 @@ func WithExceptedBucketOwner(v string) Pair {
 	}
 }
 
-// WithForcePathStyle will apply force_path_style value to Options
+// WithForcePathStyle will apply force_path_style value to Options.
+//
 // ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
 func WithForcePathStyle(v bool) Pair {
 	return Pair{
@@ -135,7 +140,8 @@ func WithForcePathStyle(v bool) Pair {
 	}
 }
 
-// WithServerSideEncryption will apply server_side_encryption value to Options
+// WithServerSideEncryption will apply server_side_encryption value to Options.
+//
 // ServerSideEncryption the server-side encryption algorithm used when storing this object in Amazon
 func WithServerSideEncryption(v string) Pair {
 	return Pair{
@@ -144,7 +150,8 @@ func WithServerSideEncryption(v string) Pair {
 	}
 }
 
-// WithServerSideEncryptionAwsKmsKeyID will apply server_side_encryption_aws_kms_key_id value to Options
+// WithServerSideEncryptionAwsKmsKeyID will apply server_side_encryption_aws_kms_key_id value to Options.
+//
 // ServerSideEncryptionAwsKmsKeyID specifies the AWS KMS key ID to use for object encryption
 func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
 	return Pair{
@@ -153,7 +160,8 @@ func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
 	}
 }
 
-// WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options
+// WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options.
+//
 // ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
 func WithServerSideEncryptionBucketKeyEnabled(v bool) Pair {
 	return Pair{
@@ -162,7 +170,8 @@ func WithServerSideEncryptionBucketKeyEnabled(v bool) Pair {
 	}
 }
 
-// WithServerSideEncryptionContext will apply server_side_encryption_context value to Options
+// WithServerSideEncryptionContext will apply server_side_encryption_context value to Options.
+//
 // ServerSideEncryptionContext specifies the AWS KMS Encryption Context to use for object encryption. The value of this header is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
 func WithServerSideEncryptionContext(v string) Pair {
 	return Pair{
@@ -171,7 +180,8 @@ func WithServerSideEncryptionContext(v string) Pair {
 	}
 }
 
-// WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm value to Options
+// WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm value to Options.
+//
 // ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The header value must be `AES256`.
 func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
 	return Pair{
@@ -180,7 +190,8 @@ func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
 	}
 }
 
-// WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value to Options
+// WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value to Options.
+//
 // ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key.
 func WithServerSideEncryptionCustomerKey(v []byte) Pair {
 	return Pair{
@@ -189,7 +200,8 @@ func WithServerSideEncryptionCustomerKey(v []byte) Pair {
 	}
 }
 
-// WithStorageClass will apply storage_class value to Options
+// WithStorageClass will apply storage_class value to Options.
+//
 // StorageClass
 func WithStorageClass(v string) Pair {
 	return Pair{
@@ -198,7 +210,8 @@ func WithStorageClass(v string) Pair {
 	}
 }
 
-// WithUseAccelerate will apply use_accelerate value to Options
+// WithUseAccelerate will apply use_accelerate value to Options.
+//
 // UseAccelerate set this to `true` to enable S3 Accelerate feature
 func WithUseAccelerate(v bool) Pair {
 	return Pair{
@@ -207,7 +220,8 @@ func WithUseAccelerate(v bool) Pair {
 	}
 }
 
-// WithUseArnRegion will apply use_arn_region value to Options
+// WithUseArnRegion will apply use_arn_region value to Options.
+//
 // UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
 func WithUseArnRegion(v bool) Pair {
 	return Pair{
@@ -303,7 +317,7 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 		}
 	}
 	if !result.HasCredential {
-		return pairServiceNew{}, services.NewPairRequiredError("credential")
+		return pairServiceNew{}, services.PairRequiredError{Keys: []string{"credential"}}
 	}
 
 	return result, nil
@@ -349,7 +363,7 @@ func (s *Service) parsePairServiceCreate(opts []Pair) (pairServiceCreate, error)
 		}
 	}
 	if !result.HasLocation {
-		return pairServiceCreate{}, services.NewPairRequiredError("location")
+		return pairServiceCreate{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
 
 	return result, nil
@@ -624,10 +638,10 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 		}
 	}
 	if !result.HasLocation {
-		return pairStorageNew{}, services.NewPairRequiredError("location")
+		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
 	if !result.HasName {
-		return pairStorageNew{}, services.NewPairRequiredError("name")
+		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"name"}}
 	}
 
 	return result, nil
@@ -676,7 +690,7 @@ func (s *Storage) parsePairStorageCompleteMultipart(opts []Pair) (pairStorageCom
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.CompleteMultipart {
-				return pairStorageCompleteMultipart{}, services.NewPairUnsupportedError(v)
+				return pairStorageCompleteMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -708,7 +722,7 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Create {
-				return pairStorageCreate{}, services.NewPairUnsupportedError(v)
+				return pairStorageCreate{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -775,7 +789,7 @@ func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreat
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.CreateMultipart {
-				return pairStorageCreateMultipart{}, services.NewPairUnsupportedError(v)
+				return pairStorageCreateMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -817,7 +831,7 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Delete {
-				return pairStorageDelete{}, services.NewPairUnsupportedError(v)
+				return pairStorageDelete{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -859,7 +873,7 @@ func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.List {
-				return pairStorageList{}, services.NewPairUnsupportedError(v)
+				return pairStorageList{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -896,7 +910,7 @@ func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMul
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.ListMultipart {
-				return pairStorageListMultipart{}, services.NewPairUnsupportedError(v)
+				return pairStorageListMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -928,7 +942,7 @@ func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, er
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Metadata {
-				return pairStorageMetadata{}, services.NewPairUnsupportedError(v)
+				return pairStorageMetadata{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -990,7 +1004,7 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Read {
-				return pairStorageRead{}, services.NewPairUnsupportedError(v)
+				return pairStorageRead{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -1037,7 +1051,7 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Stat {
-				return pairStorageStat{}, services.NewPairUnsupportedError(v)
+				return pairStorageStat{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -1124,7 +1138,7 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.Write {
-				return pairStorageWrite{}, services.NewPairUnsupportedError(v)
+				return pairStorageWrite{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -1171,7 +1185,7 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 		default:
 
 			if s.pairPolicy.All || s.pairPolicy.WriteMultipart {
-				return pairStorageWriteMultipart{}, services.NewPairUnsupportedError(v)
+				return pairStorageWriteMultipart{}, services.PairUnsupportedError{Pair: v}
 			}
 
 		}
@@ -1441,4 +1455,9 @@ func (s *Storage) WriteMultipartWithContext(ctx context.Context, o *Object, r io
 	}
 
 	return s.writeMultipart(ctx, o, r, size, index, opt)
+}
+
+func init() {
+	services.RegisterServicer(Type, NewServicer)
+	services.RegisterStorager(Type, NewStorager)
 }
