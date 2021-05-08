@@ -129,6 +129,12 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		if opt.HasExceptedBucketOwner {
 			abortInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 		}
+
+		// S3 AbortMultipartUpload is idempotent, so we don't need to check NoSuchUpload error.
+		//
+		// References
+		// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+		// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 		_, err = s.service.AbortMultipartUpload(abortInput)
 		if err != nil {
 			return
@@ -143,6 +149,11 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 
+	// S3 DeleteObject is idempotent, so we don't need to check NoSuchKey error.
+	//
+	// References
+	// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+	// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
 	_, err = s.service.DeleteObject(input)
 	if err != nil {
 		return err
