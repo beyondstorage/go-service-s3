@@ -1,8 +1,10 @@
 package s3
 
-import "errors"
+import (
+	"github.com/aos-dev/go-storage/v3/services"
+)
 
 var (
-	// ErrServerSideEncryptionCustomerKey will be returned while server-side encryption customer key is invalid.
-	ErrServerSideEncryptionCustomerKey = errors.New("invalid server-side encryption customer key")
+	// ErrServerSideEncryptionCustomerKeyInvalid will be returned while server-side encryption customer key is invalid.
+	ErrServerSideEncryptionCustomerKeyInvalid = services.NewErrorCode("invalid server-side encryption customer key")
 )

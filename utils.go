@@ -76,7 +76,7 @@ func NewStorager(pairs ...typ.Pair) (typ.Storager, error) {
 func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	defer func() {
 		if err != nil {
-			err = services.InitError{Op: "new_servicer", Type: Type, Err: err, Pairs: pairs}
+			err = services.InitError{Op: "new_servicer", Type: Type, Err: formatError(err), Pairs: pairs}
 		}
 	}()
 
@@ -139,12 +139,6 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 // New will create a new s3 service.
 func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, err error) {
-	defer func() {
-		if err != nil {
-			err = services.InitError{Op: "new_storager", Type: Type, Err: err, Pairs: pairs}
-		}
-	}()
-
 	srv, err = newServicer(pairs...)
 	if err != nil {
 		return
@@ -152,6 +146,7 @@ func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, er
 
 	store, err = srv.newStorage(pairs...)
 	if err != nil {
+		err = services.InitError{Op: "new_storager", Type: Type, Err: formatError(err), Pairs: pairs}
 		return
 	}
 	return
@@ -169,6 +164,10 @@ const (
 )
 
 func formatError(err error) error {
+	if _, ok := err.(services.AosError); ok {
+		return err
+	}
+
 	e, ok := err.(awserr.RequestFailure)
 	if !ok {
 		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
@@ -297,7 +296,7 @@ const (
 
 func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
 	if len(key) != 32 {
-		err = ErrServerSideEncryptionCustomerKey
+		err = ErrServerSideEncryptionCustomerKeyInvalid
 		return
 	}
 	kB64 := base64.StdEncoding.EncodeToString(key)
