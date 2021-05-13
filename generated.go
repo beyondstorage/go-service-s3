@@ -1026,6 +1026,8 @@ type pairStorageStat struct {
 	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
+	HasMultipartID                           bool
+	MultipartID                              string
 	HasServerSideEncryptionCustomerAlgorithm bool
 	ServerSideEncryptionCustomerAlgorithm    string
 	HasServerSideEncryptionCustomerKey       bool
@@ -1046,6 +1048,9 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 		case pairExceptedBucketOwner:
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
+		case "multipart_id":
+			result.HasMultipartID = true
+			result.MultipartID = v.Value.(string)
 		case pairServerSideEncryptionCustomerAlgorithm:
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)

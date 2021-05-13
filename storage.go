@@ -419,6 +419,29 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
+	if opt.HasMultipartID {
+		listInput := &s3.ListPartsInput{
+			Bucket:   aws.String(s.name),
+			Key:      aws.String(rp),
+			UploadId: aws.String(opt.MultipartID),
+		}
+		if opt.HasExceptedBucketOwner {
+			listInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+		}
+
+		_, err = s.service.ListPartsWithContext(ctx, listInput)
+		if err != nil {
+			return nil, err
+		}
+
+		o = s.newObject(true)
+		o.ID = rp
+		o.Path = path
+		o.Mode.Add(ModePart)
+		o.SetMultipartID(opt.MultipartID)
+		return o, nil
+	}
+
 	input := &s3.HeadObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -540,7 +563,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
 		ContentLength: &size,
-		Body:          iowrap.SizedReadSeekCloser(r, size),
+		Body:          aws.ReadSeekCloser(r),
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
