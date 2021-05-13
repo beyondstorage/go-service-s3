@@ -22,6 +22,9 @@ implement = ["multiparter"]
 required = ["location", "name"]
 optional = ["default_storage_pairs", "pair_policy", "work_dir"]
 
+[namespace.storage.op.create]
+optional = ["multipart_id"]
+
 [namespace.storage.op.delete]
 optional = ["multipart_id", "excepted_bucket_owner"]
 

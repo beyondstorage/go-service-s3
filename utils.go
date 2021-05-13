@@ -304,3 +304,14 @@ func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, 
 	kMD5B64 := base64.StdEncoding.EncodeToString(kMD5[:])
 	return &algo, &kB64, &kMD5B64, nil
 }
+
+// multipartXXX are multipart upload restriction in S3, see more details at:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
+const (
+	// multipartNumberMaximum is the max part count supported.
+	multipartNumberMaximum = 10000
+	// multipartSizeMaximum is the maximum size for each part, 5GB.
+	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
+	// multipartSizeMinimum is the minimum size for each part, 5MB.
+	multipartSizeMinimum = 5 * 1024 * 1024
+)

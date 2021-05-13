@@ -21,8 +21,10 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 	upload := &s3.CompletedMultipartUpload{}
 	for _, v := range parts {
 		upload.Parts = append(upload.Parts, &s3.CompletedPart{
-			ETag:       aws.String(v.ETag),
-			PartNumber: aws.Int64(int64(v.Index)),
+			ETag: aws.String(v.ETag),
+			// For users the `PartNumber` is zero-based. But for S3, the effective `PartNumber` is [1, 10000].
+			// Set PartNumber=v.Index+1 here to ensure pass in an effective `PartNumber` for `CompletedPart`.
+			PartNumber: aws.Int64(int64(v.Index + 1)),
 		})
 	}
 
@@ -40,12 +42,22 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 	if err != nil {
 		return
 	}
+
+	o.Mode.Del(ModePart)
+	o.Mode.Add(ModeRead)
 	return
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
-	o = s.newObject(false)
-	o.Mode = ModeRead
+	// Handle create multipart object separately.
+	if opt.HasMultipartID {
+		o = s.newObject(true)
+		o.Mode = ModePart
+		o.SetMultipartID(opt.MultipartID)
+	} else {
+		o = s.newObject(false)
+		o.Mode = ModeRead
+	}
 	o.ID = s.getAbsPath(path)
 	o.Path = path
 	return o
@@ -91,6 +103,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.StringValue(output.UploadId))
+	// set multipart restriction
+	o.SetMultipartNumberMaximum(multipartNumberMaximum)
+	o.SetMultipartSizeMaximum(multipartSizeMaximum)
+	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
 	var sm ObjectMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
@@ -351,7 +367,9 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 
 	for _, v := range output.Parts {
 		p := &Part{
-			Index: int(*v.PartNumber),
+			// The returned `PartNumber` is [1, 10000].
+			// Set Index=*v.PartNumber-1 here to make the `PartNumber` zero-based for user.
+			Index: int(*v.PartNumber) - 1,
 			Size:  *v.Size,
 			ETag:  aws.StringValue(v.ETag),
 		}
@@ -508,14 +526,17 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	return size, nil
 }
 
-func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, err error) {
+func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
 	if o.Mode&ModePart == 0 {
-		return 0, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
+		return 0, nil, services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
 	}
 
 	input := &s3.UploadPartInput{
-		Bucket:        &s.name,
-		PartNumber:    aws.Int64(int64(index)),
+		Bucket: &s.name,
+		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
+		// Set PartNumber=index+1 here to ensure pass in an effective `PartNumber` for `UploadPart`.
+		// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html
+		PartNumber:    aws.Int64(int64(index + 1)),
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
 		ContentLength: &size,
@@ -531,9 +552,15 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		}
 	}
 
-	_, err = s.service.UploadPartWithContext(ctx, input)
+	output, err := s.service.UploadPartWithContext(ctx, input)
 	if err != nil {
 		return
 	}
-	return size, nil
+
+	part = &Part{
+		Index: index,
+		Size:  size,
+		ETag:  aws.StringValue(output.ETag),
+	}
+	return size, part, nil
 }
