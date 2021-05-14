@@ -90,20 +90,21 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
 
+	// S3 SDK will compute content MD5 by default. But we will let users calculate content MD5 and pass into as a pair `Content-MD5` in our design.
+	// So we need to disable the auto content MD5 validation here.
+	cfg.S3DisableContentMD5Validation = aws.Bool(true)
+
 	if opt.HasForcePathStyle {
 		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
 	}
-
 	if opt.HasDisable100Continue {
 		cfg = cfg.WithS3Disable100Continue(opt.Disable100Continue)
 	}
-
 	if opt.HasUseAccelerate {
 		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
 	}
-
 	if opt.HasUseArnRegion {
-		cfg = cfg.WithS3UseARNRegion(opt.UseAccelerate)
+		cfg = cfg.WithS3UseARNRegion(opt.UseArnRegion)
 	}
 
 	cp, err := credential.Parse(opt.Credential)
