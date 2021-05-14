@@ -8,8 +8,8 @@ github.com/aos-dev/go-storage/v3 v3.6.1-0.20210513125055-cb9106d884d5/go.mod h1:
 github.com/aos-dev/specs/go v0.0.0-20210512024100-386a13f23a83/go.mod h1:gNah3KaPJEfysh7uCCX+sYjQC3g2yx2VgBkFlT945Ws=
 github.com/aos-dev/specs/go v0.0.0-20210512093613-3e7634b4a7f5 h1:MmXROEim7Z9u1lFLRvZCy/yKBhq3k1Q/nvaVQmVvZUU=
 github.com/aos-dev/specs/go v0.0.0-20210512093613-3e7634b4a7f5/go.mod h1:owye99eWsZvtg5kCEKtSp+AsRPsANhnXgCzHacu4icM=
-github.com/aws/aws-sdk-go v1.38.28 h1:2ZzgEupSluR18ClxUnHwXKyuADheZpMblXRAsHqF0tI=
-github.com/aws/aws-sdk-go v1.38.28/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
+github.com/aws/aws-sdk-go v1.38.39 h1:n4jkKlE3DfZBN800njuHmOEQlDht4aO/kE2VNk0/6T4=
+github.com/aws/aws-sdk-go v1.38.39/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
 github.com/dave/dst v0.26.2 h1:lnxLAKI3tx7MgLNVDirFCsDTlTG9nKTk7GcptKcWSwY=
 github.com/dave/dst v0.26.2/go.mod h1:UMDJuIRPfyUCC78eFuB+SV/WI8oDeyFDvM/JR6NI3IU=
 github.com/dave/gopackages v0.0.0-20170318123100-46e7023ec56e/go.mod h1:i00+b/gKdIDIxuLDFob7ustLAVqhsZRk2qVZrArELGQ=
