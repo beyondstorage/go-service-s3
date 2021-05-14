@@ -563,7 +563,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
 		ContentLength: &size,
-		Body:          aws.ReadSeekCloser(r),
+		Body:          iowrap.SizedReadSeekCloser(r, size),
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
