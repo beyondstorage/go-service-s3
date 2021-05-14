@@ -90,20 +90,21 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
 
+	// S3 SDK will compute content MD5 by default. But we will let users calculate content MD5 and pass into as a pair `Content-MD5` in our design.
+	// So we need to disable the auto content MD5 validation here.
+	cfg.S3DisableContentMD5Validation = aws.Bool(true)
+
 	if opt.HasForcePathStyle {
 		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
 	}
-
 	if opt.HasDisable100Continue {
 		cfg = cfg.WithS3Disable100Continue(opt.Disable100Continue)
 	}
-
 	if opt.HasUseAccelerate {
 		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
 	}
-
 	if opt.HasUseArnRegion {
-		cfg = cfg.WithS3UseARNRegion(opt.UseAccelerate)
+		cfg = cfg.WithS3UseARNRegion(opt.UseArnRegion)
 	}
 
 	cp, err := credential.Parse(opt.Credential)
@@ -304,3 +305,14 @@ func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, 
 	kMD5B64 := base64.StdEncoding.EncodeToString(kMD5[:])
 	return &algo, &kB64, &kMD5B64, nil
 }
+
+// multipartXXX are multipart upload restriction in S3, see more details at:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
+const (
+	// multipartNumberMaximum is the max part count supported.
+	multipartNumberMaximum = 10000
+	// multipartSizeMaximum is the maximum size for each part, 5GB.
+	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
+	// multipartSizeMinimum is the minimum size for each part, 5MB.
+	multipartSizeMinimum = 5 * 1024 * 1024
+)
