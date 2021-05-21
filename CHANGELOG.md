@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - *: Add UnimplementedStub (#61)
 - tests: Introduce STORAGE_S3_INTEGRATION_TEST (#65)
 - storage: Add configurations and support SSE (#63)
-- storage: Implement AOS-40 (#68)
+- storage: Implement GSP-40 (#68)
 
 ### Changed
 
@@ -41,5 +41,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
-[v1.2.0]: https://github.com/aos-dev/go-service-s3/compare/v1.1.0...v1.2.0
-[v1.1.0]: https://github.com/aos-dev/go-service-s3/compare/v1.0.0...v1.1.0
+[v1.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.1.0...v1.2.0
+[v1.1.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.0.0...v1.1.0

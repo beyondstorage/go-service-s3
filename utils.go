@@ -13,11 +13,11 @@ import (
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/service/s3"
 
-	ps "github.com/aos-dev/go-storage/v3/pairs"
-	"github.com/aos-dev/go-storage/v3/pkg/credential"
-	"github.com/aos-dev/go-storage/v3/pkg/httpclient"
-	"github.com/aos-dev/go-storage/v3/services"
-	typ "github.com/aos-dev/go-storage/v3/types"
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
+	"github.com/beyondstorage/go-storage/v4/pkg/credential"
+	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
+	"github.com/beyondstorage/go-storage/v4/services"
+	typ "github.com/beyondstorage/go-storage/v4/types"
 )
 
 // Service is the s3 service config.
@@ -165,7 +165,7 @@ const (
 )
 
 func formatError(err error) error {
-	if _, ok := err.(services.AosError); ok {
+	if _, ok := err.(services.InternalError); ok {
 		return err
 	}
 

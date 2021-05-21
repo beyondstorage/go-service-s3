@@ -8,9 +8,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 
-	"github.com/aos-dev/go-storage/v3/pkg/iowrap"
-	"github.com/aos-dev/go-storage/v3/services"
-	. "github.com/aos-dev/go-storage/v3/types"
+	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
+	"github.com/beyondstorage/go-storage/v4/services"
+	. "github.com/beyondstorage/go-storage/v4/types"
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
@@ -145,7 +145,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		// S3 AbortMultipartUpload is idempotent, so we don't need to check NoSuchUpload error.
 		//
 		// References
-		// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+		// - [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 		// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 		_, err = s.service.AbortMultipartUpload(abortInput)
 		if err != nil {
@@ -164,7 +164,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	// S3 DeleteObject is idempotent, so we don't need to check NoSuchKey error.
 	//
 	// References
-	// - [AOS-46](https://github.com/aos-dev/specs/blob/master/rfcs/46-idempotent-delete.md)
+	// - [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 	// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
 	_, err = s.service.DeleteObject(input)
 	if err != nil {
@@ -213,11 +213,11 @@ func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageL
 	return NewPartIterator(ctx, s.nextPartPage, input), nil
 }
 
-func (s *Storage) metadata(ctx context.Context, opt pairStorageMetadata) (meta *StorageMeta, err error) {
+func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.name
 	meta.WorkDir = s.workDir
-	return meta, nil
+	return meta
 }
 
 func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) error {
