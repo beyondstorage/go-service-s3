@@ -1,7 +1,7 @@
 package s3
 
 import (
-	"github.com/aos-dev/go-storage/v3/services"
+	"github.com/beyondstorage/go-storage/v4/services"
 )
 
 var (
