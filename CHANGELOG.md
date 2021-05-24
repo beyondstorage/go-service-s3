@@ -15,10 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- build(deps): bump github.com/aws/aws-sdk-go from 1.38.27 to 1.38.45 (#73)
 - storage: Idempotent storager delete operation (#82)
 - storage: Implement GSP-62 WriteMultipart returns Part (#88)
 - *: Implement GSP-73 Organization rename (#94)
+
+### Upgraded
+
+- build(deps): bump github.com/aws/aws-sdk-go from 1.38.24 to 1.38.45 (#64)
 
 ## [v1.2.0] - 2021-04-24
 
