@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.0.0] - 2021-05-24
+
+### Added
+
+- *: Implement GSP-47 Additional Error Specification (#78)
+- *: Implement GSP-51 Distinguish Errors by IsInternalError (#83)
+- storage: Implement GSP-61 Add object mode check for operations (#89)
+
+### Changed
+
+- build(deps): bump github.com/aws/aws-sdk-go from 1.38.27 to 1.38.28 (#73)
+- storage: Idempotent storager delete operation (#82)
+- storage: Implement GSP-62 WriteMultipart returns Part (#88)
+- *: Implement GSP-73 Organization rename (#94)
+
 ## [v1.2.0] - 2021-04-24
 
 ### Added
@@ -41,5 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
+[v2.0.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.2.0...v2.0.0
 [v1.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.0.0...v1.1.0
