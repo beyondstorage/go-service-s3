@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Upgraded
 
-- build(deps): bump github.com/aws/aws-sdk-go from 1.38.24 to 1.38.45 (#64)
+- build(deps): Bump aws-go-sdk to 1.38.45 (#95)
 
 ## [v1.2.0] - 2021-04-24
 
