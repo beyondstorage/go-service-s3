@@ -1,7 +1,7 @@
 github.com/Xuanwo/templateutils v0.1.0 h1:WpkWOqQtIQ2vAIpJLa727DdN8WtxhUkkbDGa6UhntJY=
 github.com/Xuanwo/templateutils v0.1.0/go.mod h1:OdE0DJ+CJxDBq6psX5DPV+gOZi8bhuHuVUpPCG++Wb8=
-github.com/aws/aws-sdk-go v1.38.28 h1:2ZzgEupSluR18ClxUnHwXKyuADheZpMblXRAsHqF0tI=
-github.com/aws/aws-sdk-go v1.38.28/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
+github.com/aws/aws-sdk-go v1.38.45 h1:pQmv1vT/voRAjENnPsT4WobFBgLwnODDFogrt2kXc7M=
+github.com/aws/aws-sdk-go v1.38.45/go.mod h1:hcU610XS61/+aQV88ixoOzUoG7v3b31pl2zKMmprdro=
 github.com/beyondstorage/go-integration-test/v4 v4.0.0-20210521062555-83f8f166943f h1:2a44nxIWm5DgEb6/gnD3We/32Bx19ET0iOM4+mxOmp8=
 github.com/beyondstorage/go-integration-test/v4 v4.0.0-20210521062555-83f8f166943f/go.mod h1:PUhp+CDYnsysCKVU7poqIK7ZWTfADkOu2Z/PjlSIhsY=
 github.com/beyondstorage/go-storage/v4 v4.0.0-20210521045436-248353dfc077 h1:BxqrLLELv6ZvP4+DZlwPAwBhNYkQqpZFvujvUT8zGiY=
