@@ -26,6 +26,7 @@ type Service struct {
 	service *s3.S3
 
 	defaultPairs DefaultServicePairs
+	features     ServiceFeatures
 
 	typ.UnimplementedServicer
 }
@@ -44,6 +45,7 @@ type Storage struct {
 
 	defaultPairs DefaultStoragePairs
 	pairPolicy   typ.PairPolicy
+	features     StorageFeatures
 
 	typ.UnimplementedStorager
 	typ.UnimplementedMultiparter
