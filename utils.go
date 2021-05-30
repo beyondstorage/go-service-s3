@@ -26,6 +26,7 @@ type Service struct {
 	service *s3.S3
 
 	defaultPairs DefaultServicePairs
+	features     ServiceFeatures
 
 	typ.UnimplementedServicer
 }
@@ -43,7 +44,7 @@ type Storage struct {
 	workDir string
 
 	defaultPairs DefaultStoragePairs
-	pairPolicy   typ.PairPolicy
+	features     StorageFeatures
 
 	typ.UnimplementedStorager
 	typ.UnimplementedMultiparter
@@ -135,6 +136,9 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	if opt.HasDefaultServicePairs {
 		srv.defaultPairs = opt.DefaultServicePairs
 	}
+	if opt.HasServiceFeatures {
+		srv.features = opt.ServiceFeatures
+	}
 	return
 }
 
@@ -216,8 +220,8 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 	if opt.HasDefaultStoragePairs {
 		st.defaultPairs = opt.DefaultStoragePairs
 	}
-	if opt.HasPairPolicy {
-		st.pairPolicy = opt.PairPolicy
+	if opt.HasStorageFeatures {
+		st.features = opt.StorageFeatures
 	}
 	if opt.HasWorkDir {
 		st.workDir = opt.WorkDir
