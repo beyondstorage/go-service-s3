@@ -45,8 +45,12 @@ const (
 	pairServerSideEncryptionCustomerAlgorithm = "s3_server_side_encryption_customer_algorithm"
 	// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key.
 	pairServerSideEncryptionCustomerKey = "s3_server_side_encryption_customer_key"
+	// ServiceFeatures set service features
+	pairServiceFeatures = "s3_service_features"
 	// StorageClass
 	pairStorageClass = "s3_storage_class"
+	// StorageFeatures set storage features
+	pairStorageFeatures = "s3_storage_features"
 	// UseAccelerate set this to `true` to enable S3 Accelerate feature
 	pairUseAccelerate = "s3_use_accelerate"
 	// UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
@@ -200,12 +204,32 @@ func WithServerSideEncryptionCustomerKey(v []byte) Pair {
 	}
 }
 
+// WithServiceFeatures will apply service_features value to Options.
+//
+// ServiceFeatures set service features
+func WithServiceFeatures(v ServiceFeatures) Pair {
+	return Pair{
+		Key:   pairServiceFeatures,
+		Value: v,
+	}
+}
+
 // WithStorageClass will apply storage_class value to Options.
 //
 // StorageClass
 func WithStorageClass(v string) Pair {
 	return Pair{
 		Key:   pairStorageClass,
+		Value: v,
+	}
+}
+
+// WithStorageFeatures will apply storage_features value to Options.
+//
+// StorageFeatures set storage features
+func WithStorageFeatures(v StorageFeatures) Pair {
+	return Pair{
+		Key:   pairStorageFeatures,
 		Value: v,
 	}
 }
@@ -264,6 +288,8 @@ type pairServiceNew struct {
 	ForcePathStyle         bool
 	HasHTTPClientOptions   bool
 	HTTPClientOptions      *httpclient.Options
+	HasServiceFeatures     bool
+	ServiceFeatures        ServiceFeatures
 	HasUseAccelerate       bool
 	UseAccelerate          bool
 	HasUseArnRegion        bool
@@ -316,6 +342,12 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasHTTPClientOptions = true
 			result.HTTPClientOptions = v.Value.(*httpclient.Options)
+		case pairServiceFeatures:
+			if result.HasServiceFeatures {
+				continue
+			}
+			result.HasServiceFeatures = true
+			result.ServiceFeatures = v.Value.(ServiceFeatures)
 		case pairUseAccelerate:
 			if result.HasUseAccelerate {
 				continue
@@ -665,8 +697,8 @@ type pairStorageNew struct {
 	// Optional pairs
 	HasDefaultStoragePairs bool
 	DefaultStoragePairs    DefaultStoragePairs
-	HasPairPolicy          bool
-	PairPolicy             PairPolicy
+	HasStorageFeatures     bool
+	StorageFeatures        StorageFeatures
 	HasWorkDir             bool
 	WorkDir                string
 }
@@ -699,12 +731,12 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasDefaultStoragePairs = true
 			result.DefaultStoragePairs = v.Value.(DefaultStoragePairs)
-		case "pair_policy":
-			if result.HasPairPolicy {
+		case pairStorageFeatures:
+			if result.HasStorageFeatures {
 				continue
 			}
-			result.HasPairPolicy = true
-			result.PairPolicy = v.Value.(PairPolicy)
+			result.HasStorageFeatures = true
+			result.StorageFeatures = v.Value.(StorageFeatures)
 		case "work_dir":
 			if result.HasWorkDir {
 				continue

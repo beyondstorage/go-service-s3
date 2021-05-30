@@ -4,7 +4,7 @@ name = "s3"
 
 [namespace.service.new]
 required = ["credential"]
-optional = ["default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
+optional = ["service_features", "default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
 
 [namespace.service.op.create]
 required = ["location"]
@@ -20,7 +20,7 @@ implement = ["multiparter"]
 
 [namespace.storage.new]
 required = ["location", "name"]
-optional = ["default_storage_pairs", "pair_policy", "work_dir"]
+optional = ["storage_features", "default_storage_pairs", "work_dir"]
 
 [namespace.storage.op.create]
 optional = ["multipart_id"]
@@ -52,6 +52,10 @@ optional = ["excepted_bucket_owner"]
 [namespace.storage.op.complete_multipart]
 optional = ["excepted_bucket_owner"]
 
+[pairs.service_features]
+type = "ServiceFeatures"
+description = "set service features"
+
 [pairs.default_service_pairs]
 type = "DefaultServicePairs"
 description = "set default pairs for service actions"
@@ -71,6 +75,10 @@ description = "set this to `true` to enable S3 Accelerate feature"
 [pairs.use_arn_region]
 type = "bool"
 description = "set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter"
+
+[pairs.storage_features]
+type = "StorageFeatures"
+description = "set storage features"
 
 [pairs.default_storage_pairs]
 type = "DefaultStoragePairs"
