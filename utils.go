@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"github.com/beyondstorage/go-storage/v4/pkg/endpoint"
+	"github.com/beyondstorage/go-endpoint"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
