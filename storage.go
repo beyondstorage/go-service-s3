@@ -74,12 +74,10 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	//ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html
 	rp += "/"
 
-	var size int64 = 0
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
-		ContentLength: &size,
-		Body:          aws.ReadSeekCloser(nil),
+		ContentLength: aws.Int64(0),
 	}
 	if opt.HasStorageClass {
 		input.StorageClass = &opt.StorageClass

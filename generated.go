@@ -682,7 +682,8 @@ type StorageFeatures struct {
 	LooseOperationWrite             bool
 	LooseOperationWriteMultipart    bool
 
-	VirtualOperationAll bool
+	VirtualOperationAll       bool
+	VirtualOperationCreateDir bool
 
 	VirtualPairAll bool
 }
@@ -1706,6 +1707,11 @@ func (s *Storage) CreateDirWithContext(ctx context.Context, path string, pairs .
 	defer func() {
 		err = s.formatError("create_dir", err, path)
 	}()
+	// If virtual operation feature is not enabled, we will act like this operation is not implemented.
+	if !s.features.VirtualOperationAll && !s.features.VirtualOperationCreateDir {
+		err = NewOperationNotImplementedError("create_dir")
+		return
+	}
 
 	pairs = append(pairs, s.defaultPairs.CreateDir...)
 	var opt pairStorageCreateDir
