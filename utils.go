@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"github.com/beyondstorage/go-storage/v4/pkg/endpoint"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -95,6 +96,13 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	// So we need to disable the auto content MD5 validation here.
 	cfg.S3DisableContentMD5Validation = aws.Bool(true)
 
+	if opt.HasEndpoint {
+		ep, err := endpoint.Parse(opt.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+		cfg = cfg.WithEndpoint(ep.String())
+	}
 	if opt.HasForcePathStyle {
 		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
 	}
