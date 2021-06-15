@@ -13,6 +13,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	"github.com/beyondstorage/go-endpoint"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
@@ -96,6 +97,23 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	// So we need to disable the auto content MD5 validation here.
 	cfg.S3DisableContentMD5Validation = aws.Bool(true)
 
+	if opt.HasEndpoint {
+		ep, err := endpoint.Parse(opt.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		var url string
+		switch ep.Protocol() {
+		case endpoint.ProtocolHTTP:
+			url, _, _ = ep.HTTP()
+		case endpoint.ProtocolHTTPS:
+			url, _, _ = ep.HTTPS()
+		default:
+			return nil, services.PairUnsupportedError{Pair: ps.WithEndpoint(opt.Endpoint)}
+		}
+		cfg = cfg.WithEndpoint(url)
+	}
 	if opt.HasForcePathStyle {
 		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
 	}
