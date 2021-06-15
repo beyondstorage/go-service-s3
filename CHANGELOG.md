@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Upgraded
 
 - build(deps): Bump go-endpoint to 1.0.1
+- build(deps): Bump aws-go-sdk to 1.38.61 (#116)
 
 ## [v2.0.0] - 2021-05-24
 
