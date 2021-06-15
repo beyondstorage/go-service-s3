@@ -45,18 +45,78 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
+	rp := s.getAbsPath(path)
+
 	// Handle create multipart object separately.
 	if opt.HasMultipartID {
 		o = s.newObject(true)
 		o.Mode = ModePart
 		o.SetMultipartID(opt.MultipartID)
 	} else {
-		o = s.newObject(false)
-		o.Mode = ModeRead
+		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			rp += "/"
+			o = s.newObject(true)
+			o.Mode = ModeDir
+		} else {
+			o = s.newObject(false)
+			o.Mode = ModeRead
+		}
 	}
-	o.ID = s.getAbsPath(path)
+	o.ID = rp
 	o.Path = path
 	return o
+}
+
+func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCreateDir) (o *Object, err error) {
+	rp := s.getAbsPath(path)
+
+	// Add `/` at the end of `path` to simulate a directory.
+	//ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html
+	rp += "/"
+
+	var size int64 = 0
+	input := &s3.PutObjectInput{
+		Bucket:        aws.String(s.name),
+		Key:           aws.String(rp),
+		ContentLength: &size,
+		Body:          aws.ReadSeekCloser(nil),
+	}
+	if opt.HasStorageClass {
+		input.StorageClass = &opt.StorageClass
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionBucketKeyEnabled {
+		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
+	}
+	if opt.HasServerSideEncryptionAwsKmsKeyID {
+		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
+	}
+	if opt.HasServerSideEncryptionContext {
+		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
+		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = &opt.ServerSideEncryption
+	}
+
+	_, err = s.service.PutObjectWithContext(ctx, input)
+	if err != nil {
+		return
+	}
+
+	o = s.newObject(true)
+	o.Mode = ModeDir
+	o.ID = rp
+	o.Path = path
+	return o, nil
 }
 
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
@@ -151,6 +211,10 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		if err != nil {
 			return
 		}
+	}
+
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		rp += "/"
 	}
 
 	input := &s3.DeleteObjectInput{
@@ -434,6 +498,10 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return o, nil
 	}
 
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		rp += "/"
+	}
+
 	input := &s3.HeadObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -456,7 +524,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-	o.Mode |= ModeRead
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		o.Mode |= ModeDir
+	} else {
+		o.Mode |= ModeRead
+	}
 
 	o.SetContentLength(aws.Int64Value(output.ContentLength))
 	o.SetLastModified(aws.TimeValue(output.LastModified))

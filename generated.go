@@ -662,6 +662,7 @@ func (s *Service) ListWithContext(ctx context.Context, pairs ...Pair) (sti *Stor
 }
 
 var (
+	_ Direr       = &Storage{}
 	_ Multiparter = &Storage{}
 	_ Storager    = &Storage{}
 )
@@ -670,6 +671,7 @@ type StorageFeatures struct {
 	LooseOperationAll               bool
 	LooseOperationCompleteMultipart bool
 	LooseOperationCreate            bool
+	LooseOperationCreateDir         bool
 	LooseOperationCreateMultipart   bool
 	LooseOperationDelete            bool
 	LooseOperationList              bool
@@ -759,6 +761,7 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 type DefaultStoragePairs struct {
 	CompleteMultipart []Pair
 	Create            []Pair
+	CreateDir         []Pair
 	CreateMultipart   []Pair
 	Delete            []Pair
 	List              []Pair
@@ -820,6 +823,8 @@ type pairStorageCreate struct {
 	pairs          []Pair
 	HasMultipartID bool
 	MultipartID    string
+	HasObjectMode  bool
+	ObjectMode     ObjectMode
 }
 
 // parsePairStorageCreate will parse Pair slice into *pairStorageCreate
@@ -840,6 +845,13 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
 			continue
+		case "object_mode":
+			if result.HasObjectMode {
+				continue
+			}
+			result.HasObjectMode = true
+			result.ObjectMode = v.Value.(ObjectMode)
+			continue
 		default:
 			isUnsupportedPair = true
 		}
@@ -853,6 +865,114 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 			continue
 		}
 		return pairStorageCreate{}, services.PairUnsupportedError{Pair: v}
+	}
+
+	// Check required pairs.
+
+	return result, nil
+}
+
+// pairStorageCreateDir is the parsed struct
+type pairStorageCreateDir struct {
+	pairs                                    []Pair
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasServerSideEncryption                  bool
+	ServerSideEncryption                     string
+	HasServerSideEncryptionAwsKmsKeyID       bool
+	ServerSideEncryptionAwsKmsKeyID          string
+	HasServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionBucketKeyEnabled     bool
+	HasServerSideEncryptionContext           bool
+	ServerSideEncryptionContext              string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
+	HasStorageClass                          bool
+	StorageClass                             string
+}
+
+// parsePairStorageCreateDir will parse Pair slice into *pairStorageCreateDir
+func (s *Storage) parsePairStorageCreateDir(opts []Pair) (pairStorageCreateDir, error) {
+	result := pairStorageCreateDir{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		// isUnsupportedPair records whether current pair is unsupported.
+		isUnsupportedPair := false
+
+		switch v.Key {
+		case pairExceptedBucketOwner:
+			if result.HasExceptedBucketOwner {
+				continue
+			}
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+			continue
+		case pairServerSideEncryption:
+			if result.HasServerSideEncryption {
+				continue
+			}
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+			continue
+		case pairServerSideEncryptionAwsKmsKeyID:
+			if result.HasServerSideEncryptionAwsKmsKeyID {
+				continue
+			}
+			result.HasServerSideEncryptionAwsKmsKeyID = true
+			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
+			continue
+		case pairServerSideEncryptionBucketKeyEnabled:
+			if result.HasServerSideEncryptionBucketKeyEnabled {
+				continue
+			}
+			result.HasServerSideEncryptionBucketKeyEnabled = true
+			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
+			continue
+		case pairServerSideEncryptionContext:
+			if result.HasServerSideEncryptionContext {
+				continue
+			}
+			result.HasServerSideEncryptionContext = true
+			result.ServerSideEncryptionContext = v.Value.(string)
+			continue
+		case pairServerSideEncryptionCustomerAlgorithm:
+			if result.HasServerSideEncryptionCustomerAlgorithm {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+			continue
+		case pairServerSideEncryptionCustomerKey:
+			if result.HasServerSideEncryptionCustomerKey {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
+			continue
+		case pairStorageClass:
+			if result.HasStorageClass {
+				continue
+			}
+			result.HasStorageClass = true
+			result.StorageClass = v.Value.(string)
+			continue
+		default:
+			isUnsupportedPair = true
+		}
+
+		if !isUnsupportedPair {
+			continue
+		}
+
+		// If user enables the loose operation feature, we will ignore PairUnsupportedError.
+		if s.features.LooseOperationAll || s.features.LooseOperationCreateDir {
+			continue
+		}
+		return pairStorageCreateDir{}, services.PairUnsupportedError{Pair: v}
 	}
 
 	// Check required pairs.
@@ -966,6 +1086,8 @@ type pairStorageDelete struct {
 	ExceptedBucketOwner    string
 	HasMultipartID         bool
 	MultipartID            string
+	HasObjectMode          bool
+	ObjectMode             ObjectMode
 }
 
 // parsePairStorageDelete will parse Pair slice into *pairStorageDelete
@@ -992,6 +1114,13 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 			}
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
+			continue
+		case "object_mode":
+			if result.HasObjectMode {
+				continue
+			}
+			result.HasObjectMode = true
+			result.ObjectMode = v.Value.(ObjectMode)
 			continue
 		default:
 			isUnsupportedPair = true
@@ -1245,6 +1374,8 @@ type pairStorageStat struct {
 	ExceptedBucketOwner                      string
 	HasMultipartID                           bool
 	MultipartID                              string
+	HasObjectMode                            bool
+	ObjectMode                               ObjectMode
 	HasServerSideEncryptionCustomerAlgorithm bool
 	ServerSideEncryptionCustomerAlgorithm    string
 	HasServerSideEncryptionCustomerKey       bool
@@ -1275,6 +1406,13 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 			}
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
+			continue
+		case "object_mode":
+			if result.HasObjectMode {
+				continue
+			}
+			result.HasObjectMode = true
+			result.ObjectMode = v.Value.(ObjectMode)
 			continue
 		case pairServerSideEncryptionCustomerAlgorithm:
 			if result.HasServerSideEncryptionCustomerAlgorithm {
@@ -1539,6 +1677,11 @@ func (s *Storage) CompleteMultipartWithContext(ctx context.Context, o *Object, p
 
 // Create will create a new object without any api call.
 //
+// ## Behavior
+//
+// - Create SHOULD NOT send any API call.
+// - Create SHOULD accept ObjectMode pair as object mode.
+//
 // This function will create a context by default.
 func (s *Storage) Create(path string, pairs ...Pair) (o *Object) {
 	pairs = append(pairs, s.defaultPairs.Create...)
@@ -1548,6 +1691,31 @@ func (s *Storage) Create(path string, pairs ...Pair) (o *Object) {
 	opt, _ = s.parsePairStorageCreate(pairs)
 
 	return s.create(path, opt)
+}
+
+// CreateDir will create a new dir object.
+//
+// This function will create a context by default.
+func (s *Storage) CreateDir(path string, pairs ...Pair) (o *Object, err error) {
+	ctx := context.Background()
+	return s.CreateDirWithContext(ctx, path, pairs...)
+}
+
+// CreateDirWithContext will create a new dir object.
+func (s *Storage) CreateDirWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
+	defer func() {
+		err = s.formatError("create_dir", err, path)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.CreateDir...)
+	var opt pairStorageCreateDir
+
+	opt, err = s.parsePairStorageCreateDir(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.createDir(ctx, path, opt)
 }
 
 // CreateMultipart will create a new multipart.
@@ -1575,7 +1743,17 @@ func (s *Storage) CreateMultipartWithContext(ctx context.Context, path string, p
 	return s.createMultipart(ctx, path, opt)
 }
 
-// Delete will delete an Object from service.
+// Delete will delete an object from service.
+//
+// ## Behavior
+//
+// - Delete only delete one and only one object.
+//   - Service DON'T NEED to support remove all.
+//   - User NEED to implement remove_all by themself.
+// - Delete is idempotent.
+//   - Successful delete always return nil error.
+//   - Delete SHOULD never return `ObjectNotExist`
+//   - Delete DON'T NEED to check the object exist or not.
 //
 // This function will create a context by default.
 func (s *Storage) Delete(path string, pairs ...Pair) (err error) {
@@ -1583,7 +1761,17 @@ func (s *Storage) Delete(path string, pairs ...Pair) (err error) {
 	return s.DeleteWithContext(ctx, path, pairs...)
 }
 
-// DeleteWithContext will delete an Object from service.
+// DeleteWithContext will delete an object from service.
+//
+// ## Behavior
+//
+// - Delete only delete one and only one object.
+//   - Service DON'T NEED to support remove all.
+//   - User NEED to implement remove_all by themself.
+// - Delete is idempotent.
+//   - Successful delete always return nil error.
+//   - Delete SHOULD never return `ObjectNotExist`
+//   - Delete DON'T NEED to check the object exist or not.
 func (s *Storage) DeleteWithContext(ctx context.Context, path string, pairs ...Pair) (err error) {
 	defer func() {
 		err = s.formatError("delete", err, path)
@@ -1694,6 +1882,12 @@ func (s *Storage) ReadWithContext(ctx context.Context, path string, w io.Writer,
 
 // Stat will stat a path to get info of an object.
 //
+// ## Behavior
+//
+// - Stat SHOULD accept ObjectMode pair as hints.
+//   - Service COULD have different implementations for different object mode.
+//   - Service SHOULD check if returning ObjectMode is match
+//
 // This function will create a context by default.
 func (s *Storage) Stat(path string, pairs ...Pair) (o *Object, err error) {
 	ctx := context.Background()
@@ -1701,6 +1895,12 @@ func (s *Storage) Stat(path string, pairs ...Pair) (o *Object, err error) {
 }
 
 // StatWithContext will stat a path to get info of an object.
+//
+// ## Behavior
+//
+// - Stat SHOULD accept ObjectMode pair as hints.
+//   - Service COULD have different implementations for different object mode.
+//   - Service SHOULD check if returning ObjectMode is match
 func (s *Storage) StatWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
 	defer func() {
 		err = s.formatError("stat", err, path)

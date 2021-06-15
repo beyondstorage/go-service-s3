@@ -16,17 +16,20 @@ optional = ["location", "excepted_bucket_owner"]
 optional = ["location"]
 
 [namespace.storage]
-implement = ["multiparter"]
+implement = ["direr", "multiparter"]
 
 [namespace.storage.new]
 required = ["location", "name"]
 optional = ["storage_features", "default_storage_pairs", "work_dir"]
 
 [namespace.storage.op.create]
-optional = ["multipart_id"]
+optional = ["multipart_id", "object_mode"]
+
+[namespace.storage.op.create_dir]
+optional = ["storage_class", "excepted_bucket_owner", "server_side_encryption_bucket_key_enabled", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
 
 [namespace.storage.op.delete]
-optional = ["multipart_id", "excepted_bucket_owner"]
+optional = ["excepted_bucket_owner", "multipart_id", "object_mode"]
 
 [namespace.storage.op.list]
 optional = ["list_mode", "excepted_bucket_owner"]
@@ -38,7 +41,7 @@ optional = ["offset", "io_callback", "size", "excepted_bucket_owner", "server_si
 optional = ["content_md5", "content_type", "io_callback", "storage_class", "excepted_bucket_owner", "server_side_encryption_bucket_key_enabled", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
 
 [namespace.storage.op.stat]
-optional = ["excepted_bucket_owner", "multipart_id", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key"]
+optional = ["excepted_bucket_owner", "multipart_id", "object_mode", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key"]
 
 [namespace.storage.op.create_multipart]
 optional = ["server_side_encryption_bucket_key_enabled", "excepted_bucket_owner", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
