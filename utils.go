@@ -101,7 +101,17 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		if err != nil {
 			return nil, err
 		}
-		cfg = cfg.WithEndpoint(ep.String())
+
+		var url string
+		switch ep.Protocol() {
+		case endpoint.ProtocolHTTP:
+			url, _, _ = ep.HTTP()
+		case endpoint.ProtocolHTTPS:
+			url, _, _ = ep.HTTPS()
+		default:
+			return nil, services.ErrCapabilityInsufficient
+		}
+		cfg = cfg.WithEndpoint(url)
 	}
 	if opt.HasForcePathStyle {
 		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
