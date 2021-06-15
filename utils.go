@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"github.com/beyondstorage/go-endpoint"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,6 +13,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	"github.com/beyondstorage/go-endpoint"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
