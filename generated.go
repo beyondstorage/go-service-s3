@@ -685,7 +685,13 @@ type StorageFeatures struct {
 	VirtualOperationAll       bool
 	VirtualOperationCreateDir bool
 
-	VirtualPairAll bool
+	VirtualPairAll              bool
+	VirtualPairCreateAll        bool
+	VirtualPairCreateObjectMode bool
+	VirtualPairDeleteAll        bool
+	VirtualPairDeleteObjectMode bool
+	VirtualPairStatAll          bool
+	VirtualPairStatObjectMode   bool
 }
 
 // pairStorageNew is the parsed struct
@@ -850,9 +856,13 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 			if result.HasObjectMode {
 				continue
 			}
-			result.HasObjectMode = true
-			result.ObjectMode = v.Value.(ObjectMode)
-			continue
+			// If user enables the virtual pair feature, we can pass the virtual pair into it.
+			if s.features.VirtualPairAll || s.features.VirtualPairCreateAll || s.features.VirtualPairCreateObjectMode {
+				result.HasObjectMode = true
+				result.ObjectMode = v.Value.(ObjectMode)
+				continue
+			}
+			isUnsupportedPair = true
 		default:
 			isUnsupportedPair = true
 		}
@@ -1120,9 +1130,13 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 			if result.HasObjectMode {
 				continue
 			}
-			result.HasObjectMode = true
-			result.ObjectMode = v.Value.(ObjectMode)
-			continue
+			// If user enables the virtual pair feature, we can pass the virtual pair into it.
+			if s.features.VirtualPairAll || s.features.VirtualPairDeleteAll || s.features.VirtualPairDeleteObjectMode {
+				result.HasObjectMode = true
+				result.ObjectMode = v.Value.(ObjectMode)
+				continue
+			}
+			isUnsupportedPair = true
 		default:
 			isUnsupportedPair = true
 		}
@@ -1375,12 +1389,12 @@ type pairStorageStat struct {
 	ExceptedBucketOwner                      string
 	HasMultipartID                           bool
 	MultipartID                              string
-	HasObjectMode                            bool
-	ObjectMode                               ObjectMode
 	HasServerSideEncryptionCustomerAlgorithm bool
 	ServerSideEncryptionCustomerAlgorithm    string
 	HasServerSideEncryptionCustomerKey       bool
 	ServerSideEncryptionCustomerKey          []byte
+	HasObjectMode                            bool
+	ObjectMode                               ObjectMode
 }
 
 // parsePairStorageStat will parse Pair slice into *pairStorageStat
@@ -1408,13 +1422,6 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
 			continue
-		case "object_mode":
-			if result.HasObjectMode {
-				continue
-			}
-			result.HasObjectMode = true
-			result.ObjectMode = v.Value.(ObjectMode)
-			continue
 		case pairServerSideEncryptionCustomerAlgorithm:
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
@@ -1429,6 +1436,17 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
 			continue
+		case "object_mode":
+			if result.HasObjectMode {
+				continue
+			}
+			// If user enables the virtual pair feature, we can pass the virtual pair into it.
+			if s.features.VirtualPairAll || s.features.VirtualPairStatAll || s.features.VirtualPairStatObjectMode {
+				result.HasObjectMode = true
+				result.ObjectMode = v.Value.(ObjectMode)
+				continue
+			}
+			isUnsupportedPair = true
 		default:
 			isUnsupportedPair = true
 		}
