@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - *: Implement GSP-97, GSP-109 and GSP-117 (#126)
 
+### Upgraded
+
+- build(deps): Bump aws-go-sdk to 1.38.68 (#127)
+
 ## [v2.1.0] - 2021-06-15
 
 ### Added
