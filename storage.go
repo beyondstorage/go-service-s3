@@ -107,7 +107,7 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	o.Path = path
 	o.SetEtag(aws.StringValue(output.ETag))
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
@@ -126,7 +126,7 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	if output.BucketKeyEnabled != nil {
 		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
@@ -176,7 +176,7 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.SetMultipartSizeMaximum(multipartSizeMaximum)
 	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
@@ -196,7 +196,7 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
 
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
@@ -562,7 +562,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetEtag(*output.ETag)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.StorageClass); v != "" {
 		sm.StorageClass = v
 	}
@@ -581,7 +581,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if output.BucketKeyEnabled != nil {
 		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
