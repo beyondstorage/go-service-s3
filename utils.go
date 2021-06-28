@@ -339,3 +339,9 @@ const (
 	// multipartSizeMinimum is the minimum size for each part, 5MB.
 	multipartSizeMinimum = 5 * 1024 * 1024
 )
+
+const (
+	// writeSizeMaximum is the maximum size for each object with a single PUT operation, 5GB.
+	// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
+	writeSizeMaximum = 5 * 1024 * 1024 * 1024
+)

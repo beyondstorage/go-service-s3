@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -171,10 +172,6 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.StringValue(output.UploadId))
-	// set multipart restriction
-	o.SetMultipartNumberMaximum(multipartNumberMaximum)
-	o.SetMultipartSizeMaximum(multipartSizeMaximum)
-	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
 	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
@@ -298,6 +295,12 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.name
 	meta.WorkDir = s.workDir
+	// set write restriction
+	meta.SetWriteSizeMaximum(writeSizeMaximum)
+	// set multipart restrictions
+	meta.SetMultipartNumberMaximum(multipartNumberMaximum)
+	meta.SetMultipartSizeMaximum(multipartSizeMaximum)
+	meta.SetMultipartSizeMinimum(multipartSizeMinimum)
 	return meta
 }
 
@@ -587,6 +590,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 }
 
 func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt pairStorageWrite) (n int64, err error) {
+	if size > writeSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
@@ -636,6 +644,14 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 }
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
+	if size > multipartSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+	if index < 0 || index >= multipartNumberMaximum {
+		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
 	input := &s3.UploadPartInput{
 		Bucket: &s.name,
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
