@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
@@ -54,6 +55,10 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 		o.SetMultipartID(opt.MultipartID)
 	} else {
 		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			if !s.features.VirtualDir {
+				return
+			}
+
 			rp += "/"
 			o = s.newObject(true)
 			o.Mode = ModeDir
@@ -68,6 +73,11 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 }
 
 func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCreateDir) (o *Object, err error) {
+	if !s.features.VirtualDir {
+		err = NewOperationNotImplementedError("create_dir")
+		return
+	}
+
 	rp := s.getAbsPath(path)
 
 	// Add `/` at the end of `path` to simulate a directory.
@@ -85,27 +95,8 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
-	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
-	}
-	if opt.HasServerSideEncryptionAwsKmsKeyID {
-		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
-	}
-	if opt.HasServerSideEncryptionContext {
-		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
-		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
-	}
-	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
-	}
 
-	_, err = s.service.PutObjectWithContext(ctx, input)
+	output, err := s.service.PutObjectWithContext(ctx, input)
 	if err != nil {
 		return
 	}
@@ -114,6 +105,29 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	o.Mode = ModeDir
 	o.ID = rp
 	o.Path = path
+	o.SetEtag(aws.StringValue(output.ETag))
+
+	var sm ObjectMetadata
+	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+		sm.ServerSideEncryption = v
+	}
+	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+		sm.ServerSideEncryptionAwsKmsKeyID = v
+	}
+	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+		sm.ServerSideEncryptionContext = v
+	}
+	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+		sm.ServerSideEncryptionCustomerAlgorithm = v
+	}
+	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+		sm.ServerSideEncryptionCustomerKeyMd5 = v
+	}
+	if output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	}
+	o.SetServiceMetadata(sm)
+
 	return o, nil
 }
 
@@ -212,6 +226,11 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	}
 
 	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
 		rp += "/"
 	}
 
@@ -497,6 +516,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	}
 
 	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
 		rp += "/"
 	}
 
