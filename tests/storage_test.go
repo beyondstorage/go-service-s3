@@ -20,3 +20,10 @@ func TestMultiparter(t *testing.T) {
 	}
 	tests.TestMultiparter(t, setupTest(t))
 }
+
+func TestDirer(t *testing.T) {
+	if os.Getenv("STORAGE_S3_INTEGRATION_TEST") != "on" {
+		t.Skipf("STORAGE_S3_INTEGRATION_TEST is not 'on', skipped")
+	}
+	tests.TestDirer(t, setupTest(t))
+}

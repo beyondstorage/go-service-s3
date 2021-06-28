@@ -3,11 +3,13 @@ package s3
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
@@ -45,18 +47,89 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 }
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
+	rp := s.getAbsPath(path)
+
 	// Handle create multipart object separately.
 	if opt.HasMultipartID {
 		o = s.newObject(true)
 		o.Mode = ModePart
 		o.SetMultipartID(opt.MultipartID)
 	} else {
-		o = s.newObject(false)
-		o.Mode = ModeRead
+		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			if !s.features.VirtualDir {
+				return
+			}
+
+			rp += "/"
+			o = s.newObject(true)
+			o.Mode = ModeDir
+		} else {
+			o = s.newObject(false)
+			o.Mode = ModeRead
+		}
 	}
-	o.ID = s.getAbsPath(path)
+	o.ID = rp
 	o.Path = path
 	return o
+}
+
+func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCreateDir) (o *Object, err error) {
+	if !s.features.VirtualDir {
+		err = NewOperationNotImplementedError("create_dir")
+		return
+	}
+
+	rp := s.getAbsPath(path)
+
+	// Add `/` at the end of `path` to simulate a directory.
+	//ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html
+	rp += "/"
+
+	input := &s3.PutObjectInput{
+		Bucket:        aws.String(s.name),
+		Key:           aws.String(rp),
+		ContentLength: aws.Int64(0),
+	}
+	if opt.HasStorageClass {
+		input.StorageClass = &opt.StorageClass
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+
+	output, err := s.service.PutObjectWithContext(ctx, input)
+	if err != nil {
+		return
+	}
+
+	o = s.newObject(true)
+	o.Mode = ModeDir
+	o.ID = rp
+	o.Path = path
+	o.SetEtag(aws.StringValue(output.ETag))
+
+	var sm ObjectSystemMetadata
+	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+		sm.ServerSideEncryption = v
+	}
+	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+		sm.ServerSideEncryptionAwsKmsKeyID = v
+	}
+	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+		sm.ServerSideEncryptionContext = v
+	}
+	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+		sm.ServerSideEncryptionCustomerAlgorithm = v
+	}
+	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+		sm.ServerSideEncryptionCustomerKeyMd5 = v
+	}
+	if output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	}
+	o.SetSystemMetadata(sm)
+
+	return o, nil
 }
 
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
@@ -99,12 +172,8 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.StringValue(output.UploadId))
-	// set multipart restriction
-	o.SetMultipartNumberMaximum(multipartNumberMaximum)
-	o.SetMultipartSizeMaximum(multipartSizeMaximum)
-	o.SetMultipartSizeMinimum(multipartSizeMinimum)
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
@@ -124,7 +193,7 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
 
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
@@ -151,6 +220,15 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		if err != nil {
 			return
 		}
+	}
+
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
 	}
 
 	input := &s3.DeleteObjectInput{
@@ -217,6 +295,12 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 	meta = NewStorageMeta()
 	meta.Name = s.name
 	meta.WorkDir = s.workDir
+	// set write restriction
+	meta.SetWriteSizeMaximum(writeSizeMaximum)
+	// set multipart restrictions
+	meta.SetMultipartNumberMaximum(multipartNumberMaximum)
+	meta.SetMultipartSizeMaximum(multipartSizeMaximum)
+	meta.SetMultipartSizeMinimum(multipartSizeMinimum)
 	return meta
 }
 
@@ -434,6 +518,15 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return o, nil
 	}
 
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return
+		}
+
+		rp += "/"
+	}
+
 	input := &s3.HeadObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -456,7 +549,11 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-	o.Mode |= ModeRead
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		o.Mode |= ModeDir
+	} else {
+		o.Mode |= ModeRead
+	}
 
 	o.SetContentLength(aws.Int64Value(output.ContentLength))
 	o.SetLastModified(aws.TimeValue(output.LastModified))
@@ -468,7 +565,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetEtag(*output.ETag)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.StorageClass); v != "" {
 		sm.StorageClass = v
 	}
@@ -487,12 +584,17 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if output.BucketKeyEnabled != nil {
 		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return o, nil
 }
 
 func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int64, opt pairStorageWrite) (n int64, err error) {
+	if size > writeSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
@@ -542,6 +644,14 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 }
 
 func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, size int64, index int, opt pairStorageWriteMultipart) (n int64, part *Part, err error) {
+	if size > multipartSizeMaximum {
+		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
+	if index < 0 || index >= multipartNumberMaximum {
+		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
+		return
+	}
 	input := &s3.UploadPartInput{
 		Bucket: &s.name,
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.

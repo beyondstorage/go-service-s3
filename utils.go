@@ -48,6 +48,7 @@ type Storage struct {
 	features     StorageFeatures
 
 	typ.UnimplementedStorager
+	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
 }
 
@@ -109,7 +110,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		case endpoint.ProtocolHTTPS:
 			url, _, _ = ep.HTTPS()
 		default:
-			return nil, services.ErrCapabilityInsufficient
+			return nil, services.PairUnsupportedError{Pair: ps.WithEndpoint(opt.Endpoint)}
 		}
 		cfg = cfg.WithEndpoint(url)
 	}
@@ -298,11 +299,11 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 		o.SetEtag(*v.ETag)
 	}
 
-	var sm ObjectMetadata
+	var sm ObjectSystemMetadata
 	if value := aws.StringValue(v.StorageClass); value != "" {
 		sm.StorageClass = value
 	}
-	o.SetServiceMetadata(sm)
+	o.SetSystemMetadata(sm)
 
 	return
 }
@@ -337,4 +338,10 @@ const (
 	multipartSizeMaximum = 5 * 1024 * 1024 * 1024
 	// multipartSizeMinimum is the minimum size for each part, 5MB.
 	multipartSizeMinimum = 5 * 1024 * 1024
+)
+
+const (
+	// writeSizeMaximum is the maximum size for each object with a single PUT operation, 5GB.
+	// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
+	writeSizeMaximum = 5 * 1024 * 1024 * 1024
 )
