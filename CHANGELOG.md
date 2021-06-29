@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.2.0] - 2021-06-29
+
+### Added
+
+- storage: Add CreateDir (#126)
+- storage: Implement GSP-93 Add ObjectMode Pair (#126)
+- storage: Implement GSP-97 Add Restrictions in Storage Metadata (#126)
+
+### Changed
+
+- *: Implement GSP-109 Redesign Features (#126)
+- *: Implement GSP-117 Rename Service to System as the Opposite to Global (#126)
+
+### Upgraded
+
+- build(deps): Bump aws-go-sdk to 1.38.68 (#127)
+
 ## [v2.1.0] - 2021-06-15
 
 ### Added
@@ -75,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
+[v2.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.2.0...v2.0.0
 [v1.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.1.0...v1.2.0
