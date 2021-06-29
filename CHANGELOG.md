@@ -5,11 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [v2.2.0] - 2021-06-28
+## [v2.2.0] - 2021-06-29
+
+### Added
+
+- storage: Add CreateDir (#126)
+- storage: Implement GSP-93 Add ObjectMode Pair (#126)
+- storage: Implement GSP-97 Add Restrictions in Storage Metadata (#126)
 
 ### Changed
 
-- *: Implement GSP-97, GSP-109 and GSP-117 (#126)
+- *: Implement GSP-109 Redesign Features (#126)
+- *: Implement GSP-117 Rename Service to System as the Opposite to Global (#126)
 
 ### Upgraded
 
