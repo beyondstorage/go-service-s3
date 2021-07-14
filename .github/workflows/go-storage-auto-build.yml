@@ -16,9 +16,10 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Check dependency names
-        if: steps.metadata.outputs.dependency-names != 'go-storage'
-        run: exit 1
+      # FIXME: Please uncomment this block after test succeed.
+      #- name: Check dependency names
+      #  if: steps.metadata.outputs.dependency-names != 'go-storage'
+      #  run: exit 1
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
