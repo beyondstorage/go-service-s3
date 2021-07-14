@@ -4,3 +4,6 @@ updates:
     directory: "/"
     schedule:
       interval: daily
+      time: "10:20"
+      timezone: "Asia/Shanghai"
+    target-branch: "go-storage"
