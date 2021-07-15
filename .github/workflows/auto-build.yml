@@ -1,4 +1,4 @@
-name: Dependabot go-storage auto build
+name: Dependabot auto build
 on: pull_request_target
 
 permissions:
@@ -16,11 +16,6 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # FIXME: Please uncomment this block after test succeed.
-      #- name: Check dependency names
-      #  if: steps.metadata.outputs.dependency-names != 'go-storage'
-      #  run: exit 1
-
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
@@ -28,6 +23,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Auto build
         run: make build
