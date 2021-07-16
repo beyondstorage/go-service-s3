@@ -104,7 +104,7 @@ type = "string"
 description = "specifies the algorithm to use to when encrypting the object. The header value must be `AES256`."
 
 [pairs.server_side_encryption_customer_key]
-type = "byte_array"
+type = "[]byte"
 description = "specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key."
 
 [pairs.server_side_encryption_aws_kms_key_id]
