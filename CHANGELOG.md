@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.3.0] - 2021-07-16
+
+### Added
+
+- ci: Add gofmt action (#140)
+- ci: Add dependabot auto build support (#139)
+- ci: Add diff check action (#145)
+
+### Changed
+
+- storage: Update types in service.toml to golang types (#150)
+- storage: Implement GSP-654 Unify List Behavior  (#150)
+
+### Fixed
+
+- ci: Fix auto-build not work correctly
+
+### Upgraded
+
+- build(deps): Bump github.com/aws/aws-sdk-go from 1.38.68 to 1.40.1 (#151)
+
 ## [v2.2.0] - 2021-06-29
 
 ### Added
@@ -92,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
+[v2.3.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/beyondstorage/go-service-s3/compare/v1.2.0...v2.0.0
