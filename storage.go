@@ -474,6 +474,14 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
 	}
+	if opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
+	} else if opt.HasOffset && !opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-", opt.Offset))
+	} else if !opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=0-%d", opt.Size-1))
+	}
+
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
