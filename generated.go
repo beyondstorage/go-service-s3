@@ -4,17 +4,17 @@ package s3
 import (
 	"context"
 	"io"
+	"time"
 
-	"github.com/beyondstorage/go-storage/v4/pkg/credential"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
 )
 
-var _ credential.Provider
 var _ Storager
 var _ services.ServiceError
 var _ httpclient.Options
+var _ time.Duration
 
 // Type is the type for s3
 const Type = "s3"
@@ -249,7 +249,7 @@ var pairMap = map[string]string{
 	"disable_100_continue":                  "bool",
 	"endpoint":                              "string",
 	"excepted_bucket_owner":                 "string",
-	"expire":                                "int",
+	"expire":                                "time.Duration",
 	"force_path_style":                      "bool",
 	"http_client_options":                   "*httpclient.Options",
 	"interceptor":                           "Interceptor",
