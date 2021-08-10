@@ -132,6 +132,68 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	return o, nil
 }
 
+func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
+	if !s.features.VirtualLink {
+		err = NewOperationNotImplementedError("virtual_link")
+		return nil, err
+	}
+
+	rt := s.getAbsPath(target)
+	rp := s.getAbsPath(path)
+
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(s.name),
+		Key: aws.String(rp),
+		// s3 doesn't support `symlink`, so we store the link target in object metadata to simulate it.
+		// ref: https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata
+		// ref: https://stackoverflow.com/questions/35042316/amazon-s3-multiple-keys-to-one-object#comment57863171_35043462
+		Metadata: map[string]*string{
+			"symlink": &rt,
+		},
+		// Set target for redirection to simulate symlink, it is only works for a website.
+		// The redirect will only take effect if the bucket is set to a static site.
+		// ref: https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/how-to-page-redirect.html
+		// ref: https://stackoverflow.com/questions/35042316/amazon-s3-multiple-keys-to-one-object#comment57863171_35043462
+		WebsiteRedirectLocation: &rt,
+	}
+
+	output, err := s.service.PutObjectWithContext(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+	// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+	// To ensure that the path matches the one the user gets, we should re-add `/` here.
+	o.SetLinkTarget("/" + rt)
+	o.Mode |= ModeLink
+
+	var sm ObjectSystemMetadata
+	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+		sm.ServerSideEncryption = v
+	}
+	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+		sm.ServerSideEncryptionAwsKmsKeyID = v
+	}
+	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+		sm.ServerSideEncryptionContext = v
+	}
+	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+		sm.ServerSideEncryptionCustomerAlgorithm = v
+	}
+	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+		sm.ServerSideEncryptionCustomerKeyMd5 = v
+	}
+	if output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	}
+	o.SetSystemMetadata(sm)
+
+	return
+}
+
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
@@ -558,6 +620,26 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	output, err := s.service.HeadObject(input)
 	if err != nil {
 		return nil, err
+	}
+
+	metadata := output.Metadata
+	for k, v := range metadata {
+		if k == "symlink" {
+			if !s.features.VirtualLink {
+				err = NewOperationNotImplementedError("virtual_link")
+				return nil, err
+			}
+
+			o = s.newObject(true)
+			o.ID = rp
+			o.Path = path
+			o.Mode |= ModeLink
+			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+			// To ensure that the path matches the one the user gets, we should re-add `/` here.
+			o.SetLinkTarget("/" + *v)
+
+			return
+		}
 	}
 
 	o = s.newObject(true)

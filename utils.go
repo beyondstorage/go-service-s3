@@ -50,6 +50,7 @@ type Storage struct {
 	typ.UnimplementedStorager
 	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
+	typ.UnimplementedLinker
 }
 
 // String implements Storager.String
@@ -290,7 +291,29 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
-	o.Mode |= typ.ModeRead
+
+	headInput := &s3.HeadObjectInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(*v.Key),
+	}
+
+	headOutput, err := s.service.HeadObject(headInput)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range headOutput.Metadata {
+		if k == "symlink" {
+			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+			// To ensure that the path matches the one the user gets, we should re-add `/` here.
+			o.SetLinkTarget("/" + *v)
+			o.Mode |= typ.ModeLink
+		}
+	}
+
+	if o.Mode&typ.ModeLink == 0 {
+		o.Mode |= typ.ModeRead
+	}
 
 	o.SetContentLength(aws.Int64Value(v.Size))
 	o.SetLastModified(aws.TimeValue(v.LastModified))
