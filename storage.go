@@ -143,13 +143,7 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(s.name),
-		Key: aws.String(rp),
-		// s3 doesn't support `symlink`, so we store the link target in object metadata to simulate it.
-		// ref: https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata
-		// ref: https://stackoverflow.com/questions/35042316/amazon-s3-multiple-keys-to-one-object#comment57863171_35043462
-		Metadata: map[string]*string{
-			"symlink": &rt,
-		},
+		Key:    aws.String(rp),
 		// Set target for redirection to simulate symlink, it is only works for a website.
 		// The redirect will only take effect if the bucket is set to a static site.
 		// ref: https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/how-to-page-redirect.html
@@ -622,24 +616,23 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return nil, err
 	}
 
-	metadata := output.Metadata
-	for k, v := range metadata {
-		if k == "symlink" {
-			if !s.features.VirtualLink {
-				err = NewOperationNotImplementedError("virtual_link")
-				return nil, err
-			}
-
-			o = s.newObject(true)
-			o.ID = rp
-			o.Path = path
-			o.Mode |= ModeLink
-			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-			// To ensure that the path matches the one the user gets, we should re-add `/` here.
-			o.SetLinkTarget("/" + *v)
-
-			return
+	redirect := output.WebsiteRedirectLocation
+	if redirect != nil {
+		// The path is a symlink object.
+		if !s.features.VirtualLink {
+			err = NewOperationNotImplementedError("virtual_link")
+			return nil, err
 		}
+
+		o = s.newObject(true)
+		o.ID = rp
+		o.Path = path
+		o.Mode |= ModeLink
+		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+		// To ensure that the path matches the one the user gets, we should re-add `/` here.
+		o.SetLinkTarget("/" + *redirect)
+
+		return
 	}
 
 	o = s.newObject(true)

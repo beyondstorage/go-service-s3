@@ -302,13 +302,12 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 		return nil, err
 	}
 
-	for k, v := range headOutput.Metadata {
-		if k == "symlink" {
-			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-			// To ensure that the path matches the one the user gets, we should re-add `/` here.
-			o.SetLinkTarget("/" + *v)
-			o.Mode |= typ.ModeLink
-		}
+	redirect := headOutput.WebsiteRedirectLocation
+	if redirect != nil {
+		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+		// To ensure that the path matches the one the user gets, we should re-add `/` here.
+		o.SetLinkTarget("/" + *redirect)
+		o.Mode |= typ.ModeLink
 	}
 
 	if o.Mode&typ.ModeLink == 0 {
