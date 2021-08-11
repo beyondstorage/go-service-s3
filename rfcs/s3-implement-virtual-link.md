@@ -3,7 +3,7 @@
 - RFC PR: [beyondstorage/go-service-s3#178](https://github.com/beyondstorage/go-service-s3/pull/178)
 - Tracking Issue: [beyondstorage/go-service-s3#144](https://github.com/beyondstorage/go-service-s3/issues/144)
 
-# GSP-xxx: S3 Implementation of Virtual Link
+# RFC-178: Add Virtual Link Support
 
 ## Background
 
@@ -51,5 +51,4 @@ N/A
 - Implement `virtual_link` in go-service-s3
 - Support `stat`/`list`
 - Setup linker tests
-
 
