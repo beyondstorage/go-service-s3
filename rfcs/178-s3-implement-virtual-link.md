@@ -1,5 +1,5 @@
-- Author: abyss-w <mad.hatter@foxmailcom>
-- Start Date: 2021-08-05
+- Author: abyss-w <mad.hatter@foxmail.com>
+- Start Date: 2021-08-11
 - RFC PR: [beyondstorage/go-service-s3#178](https://github.com/beyondstorage/go-service-s3/pull/178)
 - Tracking Issue: [beyondstorage/go-service-s3#144](https://github.com/beyondstorage/go-service-s3/issues/144)
 
