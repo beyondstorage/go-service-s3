@@ -7,42 +7,44 @@
 
 ## Background
 
-Like the one presented in [GSP-86 Add Create Link Operation](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/86-add-create-link-operation.md), s3 has no native support for symlink. We can use [x-amz-website-redirect-location](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-page-redirect.html) redirect pages but only works for a website. 
+Like the one presented in [GSP-86 Add Create Link Operation](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/86-add-create-link-operation.md), s3 has no native support for symlink. But we can use [user-defined object metadata](https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata) to simulate it.
 
 ## Proposal
 
-I propose to implement virtual_link feature to support symlink of the website in s3.
+I propose to use user-defined object metadata to implement virtual_link feature to support symlink in s3.
 
 ```go
 input := &s3.PutObjectInput{
-    WebsiteRedirectLocation: &rt,
+    Metadata: map[string]*string{
+			"x-amz-meta-bs-symlink": &rt,
+		},
 }
 ```
 
 - `PutObjectInput` in s3 is used to store the fields we need when calling `PutObjectWithContext` API to upload an object.
-- `rt` is the symlink target, it is an absolute path.
-- `WebsiteRedirectLocation` is used to configure redirects for the objects.
-  - This is only works if the Amazon S3 bucket is configured to host a static website.
+- `Metadata` `Metadata` is a map that stores user-defined metadata.
+  - `"x-amz-meta-bs-symlink"` is the name of user-defined metadata, the middle `bs` is used to avoid conflicts.
+  - `rt` is the value of `"x-amz-meta-bs-symlink"`, which is the target of the symlink, it is an absolute path.
 
 ## Rationale
 
-### System-defined object metadata & WebsiteRedirectLocation
+### User-defined metadata
 
-As the [official S3 documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html) and [Configuring a redirect](https://docs.aws.amazon.com/AmazonS3/latest/userguide/how-to-page-redirect.html) says, we can use the system-defined object metadata `x-amz-website-redirect-location` to redirect requests for the associated object to another object in the same bucket or an external URL. This allows us to simulate symlink on the website.
-
-We use the Amazon S3 API, so We can configure `x-amz-website-redirect-location` by setting the `WebsiteRedirectLocation`. The website then interprets the object as a 301 redirect.
+As stated in the document [user-defined object metadata](https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/userguide/UsingMetadata.html#UserMetadata), we can define our own metadata to store the information we need when uploading an object. One thing to note is that user-defined metadata names must start with `"x-amz-meta-"`.
 
 ### Drawbacks
 
-As s3 itself does not support symlink, we can only simulate it. Based on the existing functionality of s3, we can only implement symlink on static website. And the object created is not really a symlink object. When we call stat, we can only tell if it is a symlink by using system-defined metadata `WebsiteRedirectLocation`.
+As s3 itself does not support symlink, we can only simulate it. Based on the existing functionality of s3, we can only implement symlink on static website. And the object created is not really a symlink object. When we call stat, we can only tell if it is a symlink by using user-defined object metadata.
 
 ```go
-if WebsiteRedirectLocation != nil {
-    // The path is a symlink object.
+for k, v := range metadata {
+    if k == "x-amz-meta-bs-symlink" {
+        // The path is a symlink object.
+    }
 }
 ```
 
-Calling `HeadObject` in `list` will increase the execution cost of `list` which we cannot afford. So we will relax the s3 condition. We will not support getting the accurate symlink object type in `list` when the user has virtual linking enabled, if the user wants to get the exact object schema they need to call `stat`.
+Calling `HeadObject` in `list` will increase the execution cost of `list` which we cannot afford. So we will relax the s3 condition. We will not support getting the exact symlink object type in `list` when the user has virtual linking enabled, if the user wants to get the exact object schema they need to call `stat`.
 
 ## Compatibility
 
@@ -53,4 +55,3 @@ N/A
 - Implement `virtual_link` in go-service-s3
 - Support `stat`
 - Setup linker tests
-
