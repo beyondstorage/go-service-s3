@@ -34,13 +34,15 @@ We use the Amazon S3 API, so We can configure `x-amz-website-redirect-location` 
 
 ### Drawbacks
 
-As s3 itself does not support symlink, we can only simulate it. Based on the existing functionality of s3, we can only implement symlink on static website. And the object created is not really a symlink object. When we call stat and list, we can only tell if it is a symlink by using system-defined metadata `WebsiteRedirectLocation`.
+As s3 itself does not support symlink, we can only simulate it. Based on the existing functionality of s3, we can only implement symlink on static website. And the object created is not really a symlink object. When we call stat, we can only tell if it is a symlink by using system-defined metadata `WebsiteRedirectLocation`.
 
 ```go
 if WebsiteRedirectLocation != nil {
     // The path is a symlink object.
 }
 ```
+
+Calling `HeadObject` in `list` will increase the execution cost of `list` which we cannot afford. So we will relax the s3 condition. We will not support getting the accurate symlink object type in `list` when the user has virtual linking enabled, if the user wants to get the exact object schema they need to call `stat`.
 
 ## Compatibility
 
@@ -49,6 +51,6 @@ N/A
 ## Implementation
 
 - Implement `virtual_link` in go-service-s3
-- Support `stat`/`list`
+- Support `stat`
 - Setup linker tests
 
