@@ -22,7 +22,7 @@ input := &s3.PutObjectInput{
 ```
 
 - `PutObjectInput` in s3 is used to store the fields we need when calling `PutObjectWithContext` API to upload an object.
-- `Metadata` `Metadata` is a map that stores user-defined metadata.
+- `Metadata` is a map that stores user-defined metadata.
   - `"x-amz-meta-bs-symlink"` is the name of user-defined metadata, the middle `bs` is used to avoid conflicts.
   - `rt` is the value of `"x-amz-meta-bs-symlink"`, which is the target of the symlink, it is an absolute path.
 
