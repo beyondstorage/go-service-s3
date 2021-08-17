@@ -147,7 +147,7 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		// As s3 does not support symlink, we can only use user-defined metadata to simulate it.
 		// ref: https://github.com/beyondstorage/go-service-s3/blob/master/rfcs/178-add-virtual-link-support.md
 		Metadata: map[string]*string{
-			"x-amz-meta-bs-symlink": &rt,
+			"x-amz-meta-bs-link-target": &rt,
 		},
 	}
 
@@ -617,24 +617,22 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	}
 
 	metadata := output.Metadata
-	for k, v := range metadata {
-		if k == "x-amz-meta-bs-symlink" {
-			// The path is a symlink object.
-			if !s.features.VirtualLink {
-				err = NewOperationNotImplementedError("virtual_link")
-				return nil, err
-			}
-
-			o = s.newObject(true)
-			o.ID = rp
-			o.Path = path
-			o.Mode |= ModeLink
-			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-			// To ensure that the path matches the one the user gets, we should re-add `/` here.
-			o.SetLinkTarget("/" + *v)
-
-			return
+	if target, ok := metadata["x-amz-meta-bs-link-target"]; ok {
+		// The path is a symlink object.
+		if !s.features.VirtualLink {
+			err = NewOperationNotImplementedError("virtual_link")
+			return nil, err
 		}
+
+		o = s.newObject(true)
+		o.ID = rp
+		o.Path = path
+		o.Mode |= ModeLink
+		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+		// To ensure that the path matches the one the user gets, we should re-add `/` here.
+		o.SetLinkTarget("/" + *target)
+
+		return
 	}
 
 	o = s.newObject(true)
