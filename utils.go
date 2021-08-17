@@ -291,28 +291,9 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
-
-	headInput := &s3.HeadObjectInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(*v.Key),
-	}
-
-	headOutput, err := s.service.HeadObject(headInput)
-	if err != nil {
-		return nil, err
-	}
-
-	redirect := headOutput.WebsiteRedirectLocation
-	if redirect != nil {
-		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-		// To ensure that the path matches the one the user gets, we should re-add `/` here.
-		o.SetLinkTarget("/" + *redirect)
-		o.Mode |= typ.ModeLink
-	}
-
-	if o.Mode&typ.ModeLink == 0 {
-		o.Mode |= typ.ModeRead
-	}
+	// If you have enabled virtual link, you will not get the accurate object type.
+	// If you want to get the exact object mode, please use `stat`
+	o.Mode |= typ.ModeRead
 
 	o.SetContentLength(aws.Int64Value(v.Size))
 	o.SetLastModified(aws.TimeValue(v.LastModified))

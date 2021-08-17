@@ -34,7 +34,7 @@ As stated in the document [user-defined object metadata](https://docs.aws.amazon
 
 ### Drawbacks
 
-As s3 itself does not support symlink, we can only simulate it. Based on the existing functionality of s3, we can only implement symlink on static website. And the object created is not really a symlink object. When we call stat, we can only tell if it is a symlink by using user-defined object metadata.
+As s3 itself does not support symlink, we can only simulate it. And the object created is not really a symlink object. When we call `stat`, we can only tell if it is a symlink by using user-defined object metadata.
 
 ```go
 for k, v := range metadata {
@@ -44,7 +44,7 @@ for k, v := range metadata {
 }
 ```
 
-Calling `HeadObject` in `list` will increase the execution cost of `list` which we cannot afford. So we will relax the s3 condition. We will not support getting the exact symlink object type in `list` when the user has virtual linking enabled, if the user wants to get the exact object schema they need to call `stat`.
+Calling `HeadObject` in `list` will increase the execution cost of `list` which we cannot afford. So we will relax the s3 condition. We will not support getting the exact symlink object type in `list` when the user has virtual linking enabled, if the user wants to get the exact object mode they need to call `stat`.
 
 ## Compatibility
 
