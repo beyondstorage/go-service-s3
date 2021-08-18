@@ -620,18 +620,20 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	o.ID = rp
 	o.Path = path
 
-	metadata := output.Metadata
-	if target, ok := metadata["x-amz-meta-bs-link-target"]; ok {
-		// The path is a symlink object.
-		if !s.features.VirtualLink {
-			err = NewOperationNotImplementedError("virtual_link")
-			return nil, err
-		}
+	if output.Metadata != nil {
+		metadata := output.Metadata
+		if target, ok := metadata["x-amz-meta-bs-link-target"]; ok {
+			// The path is a symlink object.
+			if !s.features.VirtualLink {
+				err = NewOperationNotImplementedError("virtual_link")
+				return nil, err
+			}
 
-		o.Mode |= ModeLink
-		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-		// To ensure that the path matches the one the user gets, we should re-add `/` here.
-		o.SetLinkTarget("/" + *target)
+			o.Mode |= ModeLink
+			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+			// To ensure that the path matches the one the user gets, we should re-add `/` here.
+			o.SetLinkTarget("/" + *target)
+		}
 	}
 
 	if o.Mode&ModeLink == 0 {
