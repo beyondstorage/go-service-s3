@@ -20,7 +20,8 @@ func setupTest(t *testing.T) types.Storager {
 		ps.WithLocation(os.Getenv("STORAGE_S3_LOCATION")),
 		ps.WithWorkDir("/"+uuid.New().String()+"/"),
 		s3.WithStorageFeatures(s3.StorageFeatures{
-			VirtualDir: true,
+			VirtualDir:  true,
+			VirtualLink: true,
 		}),
 	)
 	if err != nil {

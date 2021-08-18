@@ -50,6 +50,7 @@ type Storage struct {
 	typ.UnimplementedStorager
 	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
+	typ.UnimplementedLinker
 }
 
 // String implements Storager.String
@@ -290,6 +291,8 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
+	// If you have enabled virtual link, you will not get the accurate object type.
+	// If you want to get the exact object mode, please use `stat`
 	o.Mode |= typ.ModeRead
 
 	o.SetContentLength(aws.Int64Value(v.Size))

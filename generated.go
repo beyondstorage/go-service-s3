@@ -622,6 +622,7 @@ func (s *Service) ListWithContext(ctx context.Context, pairs ...Pair) (sti *Stor
 
 var (
 	_ Direr       = &Storage{}
+	_ Linker      = &Storage{}
 	_ Multiparter = &Storage{}
 	_ Storager    = &Storage{}
 )
@@ -634,6 +635,13 @@ type StorageFeatures struct {
 	//
 	// This feature was introduced in GSP-109.
 	VirtualDir bool
+	// VirtualLink virtual_link feature is designed for a service that doesn't have native support for link.
+	//
+	// - If this feature is enabled, the service will run compatible mode: create link via native methods, but allow read link from old-style link object.
+	// - If this feature is not enabled, the service will run in native as other service.
+	//
+	// This feature was introduced in GSP-86.
+	VirtualLink bool
 }
 
 // pairStorageNew is the parsed struct
@@ -711,6 +719,7 @@ type DefaultStoragePairs struct {
 	CompleteMultipart []Pair
 	Create            []Pair
 	CreateDir         []Pair
+	CreateLink        []Pair
 	CreateMultipart   []Pair
 	Delete            []Pair
 	List              []Pair
@@ -828,6 +837,29 @@ func (s *Storage) parsePairStorageCreateDir(opts []Pair) (pairStorageCreateDir, 
 			continue
 		default:
 			return pairStorageCreateDir{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
+
+	// Check required pairs.
+
+	return result, nil
+}
+
+// pairStorageCreateLink is the parsed struct
+type pairStorageCreateLink struct {
+	pairs []Pair
+}
+
+// parsePairStorageCreateLink will parse Pair slice into *pairStorageCreateLink
+func (s *Storage) parsePairStorageCreateLink(opts []Pair) (pairStorageCreateLink, error) {
+	result := pairStorageCreateLink{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageCreateLink{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
@@ -1455,6 +1487,53 @@ func (s *Storage) CreateDirWithContext(ctx context.Context, path string, pairs .
 	}
 
 	return s.createDir(ctx, path, opt)
+}
+
+// CreateLink Will create a link object.
+//
+// # Behavior
+//
+// - `path` and `target` COULD be relative or absolute path.
+// - If `target` not exists, CreateLink will still create a link object to path.
+// - If `path` exists:
+//   - If `path` is a symlink object, CreateLink will remove the symlink object and create a new link object to path.
+//   - If `path` is not a symlink object, CreateLink will return an ErrObjectModeInvalid error when the service does not support overwrite.
+// - A link object COULD be returned in `Stat` or `List`.
+// - CreateLink COULD implement virtual_link feature when service without native support.
+//   - Users SHOULD enable this feature by themselves.
+//
+// This function will create a context by default.
+func (s *Storage) CreateLink(path string, target string, pairs ...Pair) (o *Object, err error) {
+	ctx := context.Background()
+	return s.CreateLinkWithContext(ctx, path, target, pairs...)
+}
+
+// CreateLinkWithContext Will create a link object.
+//
+// # Behavior
+//
+// - `path` and `target` COULD be relative or absolute path.
+// - If `target` not exists, CreateLink will still create a link object to path.
+// - If `path` exists:
+//   - If `path` is a symlink object, CreateLink will remove the symlink object and create a new link object to path.
+//   - If `path` is not a symlink object, CreateLink will return an ErrObjectModeInvalid error when the service does not support overwrite.
+// - A link object COULD be returned in `Stat` or `List`.
+// - CreateLink COULD implement virtual_link feature when service without native support.
+//   - Users SHOULD enable this feature by themselves.
+func (s *Storage) CreateLinkWithContext(ctx context.Context, path string, target string, pairs ...Pair) (o *Object, err error) {
+	defer func() {
+		err = s.formatError("create_link", err, path, target)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.CreateLink...)
+	var opt pairStorageCreateLink
+
+	opt, err = s.parsePairStorageCreateLink(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.createLink(ctx, path, target, opt)
 }
 
 // CreateMultipart will create a new multipart.

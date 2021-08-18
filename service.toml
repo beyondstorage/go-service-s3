@@ -16,8 +16,8 @@ optional = ["location", "excepted_bucket_owner"]
 optional = ["location"]
 
 [namespace.storage]
-features = ["virtual_dir"]
-implement = ["direr", "multiparter"]
+features = ["virtual_dir", "virtual_link"]
+implement = ["direr", "multiparter", "linker"]
 
 [namespace.storage.new]
 required = ["location", "name"]
