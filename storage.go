@@ -616,6 +616,10 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		return nil, err
 	}
 
+	o = s.newObject(true)
+	o.ID = rp
+	o.Path = path
+
 	metadata := output.Metadata
 	if target, ok := metadata["x-amz-meta-bs-link-target"]; ok {
 		// The path is a symlink object.
@@ -623,25 +627,18 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			err = NewOperationNotImplementedError("virtual_link")
 			return nil, err
 		}
-
-		o = s.newObject(true)
-		o.ID = rp
-		o.Path = path
 		o.Mode |= ModeLink
 		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
 		// To ensure that the path matches the one the user gets, we should re-add `/` here.
 		o.SetLinkTarget("/" + *target)
-
-		return
 	}
 
-	o = s.newObject(true)
-	o.ID = rp
-	o.Path = path
-	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
-		o.Mode |= ModeDir
-	} else {
-		o.Mode |= ModeRead
+	if o.Mode & ModeLink == 0 {
+		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+			o.Mode |= ModeDir
+		} else {
+			o.Mode |= ModeRead
+		}
 	}
 
 	o.SetContentLength(aws.Int64Value(output.ContentLength))
