@@ -627,13 +627,14 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			err = NewOperationNotImplementedError("virtual_link")
 			return nil, err
 		}
+
 		o.Mode |= ModeLink
 		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
 		// To ensure that the path matches the one the user gets, we should re-add `/` here.
 		o.SetLinkTarget("/" + *target)
 	}
 
-	if o.Mode & ModeLink == 0 {
+	if o.Mode&ModeLink == 0 {
 		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
 			o.Mode |= ModeDir
 		} else {
