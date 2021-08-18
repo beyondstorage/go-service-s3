@@ -16,15 +16,15 @@ I propose to use user-defined object metadata to implement virtual_link feature 
 ```go
 input := &s3.PutObjectInput{
     Metadata: map[string]*string{
-			"x-amz-meta-bs-symlink": &rt,
+			"x-amz-meta-bs-link-target": &rt,
 		},
 }
 ```
 
 - `PutObjectInput` in s3 is used to store the fields we need when calling `PutObjectWithContext` API to upload an object.
 - `Metadata` is a map that stores user-defined metadata.
-  - `"x-amz-meta-bs-symlink"` is the name of user-defined metadata, the middle `bs` is used to avoid conflicts.
-  - `rt` is the value of `"x-amz-meta-bs-symlink"`, which is the target of the symlink, it is an absolute path.
+  - `"x-amz-meta-bs-link-target"` is the name of user-defined metadata, the middle `bs` is used to avoid conflicts.
+  - `rt` is the value of `"x-amz-meta-bs-link-target"`, which is the target of the symlink, it is an absolute path.
 
 ## Rationale
 
@@ -37,10 +37,8 @@ As stated in the document [user-defined object metadata](https://docs.aws.amazon
 As s3 itself does not support symlink, we can only simulate it. And the object created is not really a symlink object. When we call `stat`, we can only tell if it is a symlink by using user-defined object metadata.
 
 ```go
-for k, v := range metadata {
-    if k == "x-amz-meta-bs-symlink" {
-        // The path is a symlink object.
-    }
+if v, ok := metadata["x-amz-meta-bs-link-target"]; ok {
+	// The path is a symlink object. 
 }
 ```
 
