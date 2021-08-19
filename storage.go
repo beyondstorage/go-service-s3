@@ -622,7 +622,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 
 	if output.Metadata != nil {
 		metadata := output.Metadata
-		if target, ok := metadata["x-amz-meta-bs-link-target"]; ok {
+		if target, ok := metadata["X-Amz-Meta-Bs-Link-Target"]; ok {
 			// The path is a symlink object.
 			if !s.features.VirtualLink {
 				err = NewOperationNotImplementedError("virtual_link")
