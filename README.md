@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-apache%20v2-blue.svg)](https://github.com/Xuanwo/storage/blob/master/LICENSE)
 [![go storage dev](https://img.shields.io/matrix/go-service-s3:aos.dev.svg?server_fqdn=chat.aos.dev&label=%23go-service-s3%3Aaos.dev&logo=matrix)](https://matrix.to/#/#go-service-s3:aos.dev)
 
-s3 service support for [go-storage](https://github.com/beyondstorage/go-storage)
+s3 service support for [go-storage](https://github.com/beyondstorage/go-storage).
 
 ## Install
 
