@@ -132,8 +132,8 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	return o, nil
 }
 
-// LinkMeta is the name of the user-defined metadata name used to store the target.
-const LinkMeta = "x-amz-meta-bs-link-target"
+// metadataLinkTargetHeader is the name of the user-defined metadata name used to store the link target.
+const metadataLinkTargetHeader = "x-amz-meta-bs-link-target"
 
 func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
 	rt := s.getAbsPath(target)
@@ -145,7 +145,7 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		// As s3 does not support symlink, we can only use user-defined metadata to simulate it.
 		// ref: https://github.com/beyondstorage/go-service-s3/blob/master/rfcs/178-add-virtual-link-support.md
 		Metadata: map[string]*string{
-			LinkMeta: &rt,
+			metadataLinkTargetHeader: &rt,
 		},
 	}
 
@@ -626,7 +626,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 
 	if output.Metadata != nil {
 		metadata := output.Metadata
-		if target, ok := metadata[LinkMeta]; ok {
+		if target, ok := metadata[metadataLinkTargetHeader]; ok {
 			// The path is a symlink object.
 			if !s.features.VirtualLink {
 				// The virtual link is not enabled, so we set the object mode to `ModeRead`.
