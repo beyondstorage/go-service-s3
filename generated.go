@@ -4,6 +4,7 @@ package s3
 import (
 	"context"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
@@ -15,6 +16,7 @@ var _ Storager
 var _ services.ServiceError
 var _ httpclient.Options
 var _ time.Duration
+var _ http.Request
 
 // Type is the type for s3
 const Type = "s3"
@@ -101,10 +103,40 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 // WithDisable100Continue will apply disable_100_continue value to Options.
 //
 // Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
-func WithDisable100Continue(v bool) Pair {
+func WithDisable100Continue() Pair {
 	return Pair{
 		Key:   "disable_100_continue",
-		Value: v,
+		Value: true,
+	}
+}
+
+// WithEnableVirtualDir will apply enable_virtual_dir value to Options.
+//
+// VirtualDir virtual_dir feature is designed for a service that doesn't have native dir support but wants to provide simulated operations.
+//
+// - If this feature is disabled (the default behavior), the service will behave like it doesn't have any dir support.
+// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create, list, delete, and so on.
+//
+// This feature was introduced in GSP-109.
+func WithEnableVirtualDir() Pair {
+	return Pair{
+		Key:   "enable_virtual_dir",
+		Value: true,
+	}
+}
+
+// WithEnableVirtualLink will apply enable_virtual_link value to Options.
+//
+// VirtualLink virtual_link feature is designed for a service that doesn't have native support for link.
+//
+// - If this feature is enabled, the service will run compatible mode: create link via native methods, but allow read link from old-style link object.
+// - If this feature is not enabled, the service will run in native as other service.
+//
+// This feature was introduced in GSP-86.
+func WithEnableVirtualLink() Pair {
+	return Pair{
+		Key:   "enable_virtual_link",
+		Value: true,
 	}
 }
 
@@ -121,10 +153,10 @@ func WithExceptedBucketOwner(v string) Pair {
 // WithForcePathStyle will apply force_path_style value to Options.
 //
 // ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
-func WithForcePathStyle(v bool) Pair {
+func WithForcePathStyle() Pair {
 	return Pair{
 		Key:   "force_path_style",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -151,10 +183,10 @@ func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
 // WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options.
 //
 // ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
-func WithServerSideEncryptionBucketKeyEnabled(v bool) Pair {
+func WithServerSideEncryptionBucketKeyEnabled() Pair {
 	return Pair{
 		Key:   "server_side_encryption_bucket_key_enabled",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -221,20 +253,20 @@ func WithStorageFeatures(v StorageFeatures) Pair {
 // WithUseAccelerate will apply use_accelerate value to Options.
 //
 // UseAccelerate set this to `true` to enable S3 Accelerate feature
-func WithUseAccelerate(v bool) Pair {
+func WithUseAccelerate() Pair {
 	return Pair{
 		Key:   "use_accelerate",
-		Value: v,
+		Value: true,
 	}
 }
 
 // WithUseArnRegion will apply use_arn_region value to Options.
 //
 // UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
-func WithUseArnRegion(v bool) Pair {
+func WithUseArnRegion() Pair {
 	return Pair{
 		Key:   "use_arn_region",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -247,6 +279,8 @@ var pairMap = map[string]string{
 	"default_service_pairs":                 "DefaultServicePairs",
 	"default_storage_pairs":                 "DefaultStoragePairs",
 	"disable_100_continue":                  "bool",
+	"enable_virtual_dir":                    "bool",
+	"enable_virtual_link":                   "bool",
 	"endpoint":                              "string",
 	"excepted_bucket_owner":                 "string",
 	"expire":                                "time.Duration",
@@ -622,6 +656,7 @@ func (s *Service) ListWithContext(ctx context.Context, pairs ...Pair) (sti *Stor
 
 var (
 	_ Direr       = &Storage{}
+	_ HTTPSigner  = &Storage{}
 	_ Linker      = &Storage{}
 	_ Multiparter = &Storage{}
 	_ Storager    = &Storage{}
@@ -725,6 +760,7 @@ type DefaultStoragePairs struct {
 	List              []Pair
 	ListMultipart     []Pair
 	Metadata          []Pair
+	QuerySignHTTP     []Pair
 	Read              []Pair
 	Stat              []Pair
 	Write             []Pair
@@ -1092,6 +1128,29 @@ func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, er
 		switch v.Key {
 		default:
 			return pairStorageMetadata{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
+
+	// Check required pairs.
+
+	return result, nil
+}
+
+// pairStorageQuerySignHTTP is the parsed struct
+type pairStorageQuerySignHTTP struct {
+	pairs []Pair
+}
+
+// parsePairStorageQuerySignHTTP will parse Pair slice into *pairStorageQuerySignHTTP
+func (s *Storage) parsePairStorageQuerySignHTTP(opts []Pair) (pairStorageQuerySignHTTP, error) {
+	result := pairStorageQuerySignHTTP{
+		pairs: opts,
+	}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageQuerySignHTTP{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
@@ -1691,6 +1750,31 @@ func (s *Storage) Metadata(pairs ...Pair) (meta *StorageMeta) {
 	opt, _ = s.parsePairStorageMetadata(pairs)
 
 	return s.metadata(opt)
+}
+
+// QuerySignHTTP will return `*http.Request` with query string parameters containing signature in `URL` to represent the client's request.
+//
+// This function will create a context by default.
+func (s *Storage) QuerySignHTTP(op string, path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPWithContext(ctx, op, path, expire, pairs...)
+}
+
+// QuerySignHTTPWithContext will return `*http.Request` with query string parameters containing signature in `URL` to represent the client's request.
+func (s *Storage) QuerySignHTTPWithContext(ctx context.Context, op string, path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err = s.formatError("query_sign_http", err, op, path)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTP...)
+	var opt pairStorageQuerySignHTTP
+
+	opt, err = s.parsePairStorageQuerySignHTTP(pairs)
+	if err != nil {
+		return
+	}
+
+	return s.querySignHTTP(ctx, op, path, expire, opt)
 }
 
 // Read will read the file's data.

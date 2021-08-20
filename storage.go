@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -525,6 +527,38 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 
 	input.partNumberMarker = aws.Int64Value(output.NextPartNumberMarker)
 	return nil
+}
+
+func (s *Storage) querySignHTTP(ctx context.Context, op string, path string, expire time.Duration, opt pairStorageQuerySignHTTP) (req *http.Request, err error) {
+	rp := s.getAbsPath(path)
+
+	switch op {
+	case opWrite:
+		putReq, _ := s.service.PutObjectRequest(&s3.PutObjectInput{
+			Bucket: aws.String(s.name),
+			Key:    aws.String(rp),
+		})
+		url, err := putReq.Presign(expire)
+		if err != nil {
+			return nil, err
+		}
+		req, err = http.NewRequest("PUT", url, nil)
+	case opRead:
+		getReq, _ := s.service.GetObjectRequest(&s3.GetObjectInput{
+			Bucket: aws.String(s.name),
+			Key:    aws.String(rp),
+		})
+		url, err := getReq.Presign(expire)
+		if err != nil {
+			return nil, err
+		}
+		req, err = http.NewRequest("GET", url, nil)
+	default:
+		req = nil
+		err = services.ErrRestrictionDissatisfied
+	}
+
+	return req, err
 }
 
 func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairStorageRead) (n int64, err error) {

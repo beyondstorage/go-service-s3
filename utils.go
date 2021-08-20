@@ -51,6 +51,7 @@ type Storage struct {
 	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
 	typ.UnimplementedLinker
+	typ.UnimplementedHTTPSigner
 }
 
 // String implements Storager.String
@@ -351,4 +352,10 @@ const (
 	// writeSizeMaximum is the maximum size for each object with a single PUT operation, 5GB.
 	// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
 	writeSizeMaximum = 5 * 1024 * 1024 * 1024
+)
+
+const (
+	opWrite = typ.OpStoragerWrite
+	opRead  = typ.OpStoragerRead
+	// ...
 )

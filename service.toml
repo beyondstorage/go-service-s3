@@ -17,7 +17,7 @@ optional = ["location"]
 
 [namespace.storage]
 features = ["virtual_dir", "virtual_link"]
-implement = ["direr", "multiparter", "linker"]
+implement = ["direr", "httpSigner", "linker", "multiparter",]
 
 [namespace.storage.new]
 required = ["location", "name"]
