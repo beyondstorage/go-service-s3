@@ -132,12 +132,10 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	return o, nil
 }
 
-func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
-	if !s.features.VirtualLink {
-		err = NewOperationNotImplementedError("virtual_link")
-		return nil, err
-	}
+// LinkMeta is the name of the user-defined metadata name used to store the target.
+const LinkMeta = "x-amz-meta-bs-link-target"
 
+func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
 	rt := s.getAbsPath(target)
 	rp := s.getAbsPath(path)
 
@@ -147,7 +145,7 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		// As s3 does not support symlink, we can only use user-defined metadata to simulate it.
 		// ref: https://github.com/beyondstorage/go-service-s3/blob/master/rfcs/178-add-virtual-link-support.md
 		Metadata: map[string]*string{
-			"x-amz-meta-bs-link-target": &rt,
+			LinkMeta: &rt,
 		},
 	}
 
@@ -159,10 +157,16 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-	// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-	// To ensure that the path matches the one the user gets, we should re-add `/` here.
-	o.SetLinkTarget("/" + rt)
-	o.Mode |= ModeLink
+
+	if !s.features.VirtualLink {
+		// The virtual link is not enabled, so we set the object mode to `ModeRead`.
+		o.Mode |= ModeRead
+	} else {
+		// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+		// To ensure that the path matches the one the user gets, we should re-add `/` here.
+		o.SetLinkTarget("/" + rt)
+		o.Mode |= ModeLink
+	}
 
 	var sm ObjectSystemMetadata
 	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
@@ -622,21 +626,21 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 
 	if output.Metadata != nil {
 		metadata := output.Metadata
-		if target, ok := metadata["X-Amz-Meta-Bs-Link-Target"]; ok {
+		if target, ok := metadata[LinkMeta]; ok {
 			// The path is a symlink object.
 			if !s.features.VirtualLink {
-				err = NewOperationNotImplementedError("virtual_link")
-				return nil, err
+				// The virtual link is not enabled, so we set the object mode to `ModeRead`.
+				o.Mode |= ModeRead
+			} else {
+				o.Mode |= ModeLink
+				// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
+				// To ensure that the path matches the one the user gets, we should re-add `/` here.
+				o.SetLinkTarget("/" + *target)
 			}
-
-			o.Mode |= ModeLink
-			// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
-			// To ensure that the path matches the one the user gets, we should re-add `/` here.
-			o.SetLinkTarget("/" + *target)
 		}
 	}
 
-	if o.Mode&ModeLink == 0 {
+	if o.Mode&ModeLink == 0 && o.Mode&ModeRead == 0 {
 		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
 			o.Mode |= ModeDir
 		} else {
