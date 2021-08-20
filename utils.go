@@ -97,6 +97,10 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	// S3 SDK will compute content MD5 by default. But we will let users calculate content MD5 and pass into as a pair `Content-MD5` in our design.
 	// So we need to disable the auto content MD5 validation here.
 	cfg.S3DisableContentMD5Validation = aws.Bool(true)
+	// s3 sdk By default, unmasked keys are written as a map key, the first letter and any letters after the hyphen will be capitalised and the rest lowercase.
+	// We need to make all letters lowercase,
+	// so we need to set the API response header mapping here to decrypt to normalised lowercase mapping keys.
+	cfg.LowerCaseHeaderMaps = aws.Bool(true)
 
 	if opt.HasEndpoint {
 		ep, err := endpoint.Parse(opt.Endpoint)
