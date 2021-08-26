@@ -18,6 +18,7 @@ optional = ["location"]
 [namespace.storage]
 features = ["virtual_dir", "virtual_link"]
 implement = ["direr", "multiparter", "linker"]
+defaultable = ["io_callback", "storage_class"]
 
 [namespace.storage.new]
 required = ["location", "name"]
@@ -48,7 +49,7 @@ optional = ["excepted_bucket_owner", "multipart_id", "object_mode", "server_side
 optional = ["server_side_encryption_bucket_key_enabled", "excepted_bucket_owner", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
 
 [namespace.storage.op.write_multipart]
-optional = ["excepted_bucket_owner", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key"]
+optional = ["excepted_bucket_owner", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "io_callback"]
 
 [namespace.storage.op.list_multipart]
 optional = ["excepted_bucket_owner"]

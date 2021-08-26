@@ -4,8 +4,10 @@ package s3
 import (
 	"context"
 	"io"
+	"net/http"
 	"time"
 
+	. "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
@@ -15,6 +17,8 @@ var _ Storager
 var _ services.ServiceError
 var _ httpclient.Options
 var _ time.Duration
+var _ http.Request
+var _ Error
 
 // Type is the type for s3
 const Type = "s3"
@@ -78,12 +82,32 @@ func setStorageSystemMetadata(s *StorageMeta, sm StorageSystemMetadata) {
 	s.SetSystemMetadata(sm)
 }
 
+// WithDefaultIoCallback will apply default_io_callback value to Options.
+//
+// IoCallback specify what todo every time we read data from source
+func WithDefaultIoCallback(v func([]byte)) Pair {
+	return Pair{
+		Key:   "default_io_callback",
+		Value: v,
+	}
+}
+
 // WithDefaultServicePairs will apply default_service_pairs value to Options.
 //
 // DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	return Pair{
 		Key:   "default_service_pairs",
+		Value: v,
+	}
+}
+
+// WithDefaultStorageClass will apply default_storage_class value to Options.
+//
+// StorageClass
+func WithDefaultStorageClass(v string) Pair {
+	return Pair{
+		Key:   "default_storage_class",
 		Value: v,
 	}
 }
@@ -101,10 +125,40 @@ func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
 // WithDisable100Continue will apply disable_100_continue value to Options.
 //
 // Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
-func WithDisable100Continue(v bool) Pair {
+func WithDisable100Continue() Pair {
 	return Pair{
 		Key:   "disable_100_continue",
-		Value: v,
+		Value: true,
+	}
+}
+
+// WithEnableVirtualDir will apply enable_virtual_dir value to Options.
+//
+// VirtualDir virtual_dir feature is designed for a service that doesn't have native dir support but wants to provide simulated operations.
+//
+// - If this feature is disabled (the default behavior), the service will behave like it doesn't have any dir support.
+// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create, list, delete, and so on.
+//
+// This feature was introduced in GSP-109.
+func WithEnableVirtualDir() Pair {
+	return Pair{
+		Key:   "enable_virtual_dir",
+		Value: true,
+	}
+}
+
+// WithEnableVirtualLink will apply enable_virtual_link value to Options.
+//
+// VirtualLink virtual_link feature is designed for a service that doesn't have native support for link.
+//
+// - If this feature is enabled, the service will run compatible mode: create link via native methods, but allow read link from old-style link object.
+// - If this feature is not enabled, the service will run in native as other service.
+//
+// This feature was introduced in GSP-86.
+func WithEnableVirtualLink() Pair {
+	return Pair{
+		Key:   "enable_virtual_link",
+		Value: true,
 	}
 }
 
@@ -121,10 +175,10 @@ func WithExceptedBucketOwner(v string) Pair {
 // WithForcePathStyle will apply force_path_style value to Options.
 //
 // ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
-func WithForcePathStyle(v bool) Pair {
+func WithForcePathStyle() Pair {
 	return Pair{
 		Key:   "force_path_style",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -151,10 +205,10 @@ func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
 // WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options.
 //
 // ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
-func WithServerSideEncryptionBucketKeyEnabled(v bool) Pair {
+func WithServerSideEncryptionBucketKeyEnabled() Pair {
 	return Pair{
 		Key:   "server_side_encryption_bucket_key_enabled",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -221,20 +275,20 @@ func WithStorageFeatures(v StorageFeatures) Pair {
 // WithUseAccelerate will apply use_accelerate value to Options.
 //
 // UseAccelerate set this to `true` to enable S3 Accelerate feature
-func WithUseAccelerate(v bool) Pair {
+func WithUseAccelerate() Pair {
 	return Pair{
 		Key:   "use_accelerate",
-		Value: v,
+		Value: true,
 	}
 }
 
 // WithUseArnRegion will apply use_arn_region value to Options.
 //
 // UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
-func WithUseArnRegion(v bool) Pair {
+func WithUseArnRegion() Pair {
 	return Pair{
 		Key:   "use_arn_region",
-		Value: v,
+		Value: true,
 	}
 }
 
@@ -244,9 +298,13 @@ var pairMap = map[string]string{
 	"context":                               "context.Context",
 	"continuation_token":                    "string",
 	"credential":                            "string",
+	"default_io_callback":                   "func([]byte)",
 	"default_service_pairs":                 "DefaultServicePairs",
+	"default_storage_class":                 "string",
 	"default_storage_pairs":                 "DefaultStoragePairs",
 	"disable_100_continue":                  "bool",
+	"enable_virtual_dir":                    "bool",
+	"enable_virtual_link":                   "bool",
 	"endpoint":                              "string",
 	"excepted_bucket_owner":                 "string",
 	"expire":                                "time.Duration",
@@ -305,6 +363,8 @@ type pairServiceNew struct {
 	UseAccelerate          bool
 	HasUseArnRegion        bool
 	UseArnRegion           bool
+	// Enable features
+	// Default pairs
 }
 
 // parsePairServiceNew will parse Pair slice into *pairServiceNew
@@ -371,8 +431,15 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasUseArnRegion = true
 			result.UseArnRegion = v.Value.(bool)
+			// Enable features
+			// Default pairs
 		}
 	}
+
+	// Enable features
+
+	// Default pairs
+
 	if !result.HasCredential {
 		return pairServiceNew{}, services.PairRequiredError{Keys: []string{"credential"}}
 	}
@@ -660,6 +727,16 @@ type pairStorageNew struct {
 	StorageFeatures        StorageFeatures
 	HasWorkDir             bool
 	WorkDir                string
+	// Enable features
+	hasEnableVirtualDir  bool
+	EnableVirtualDir     bool
+	hasEnableVirtualLink bool
+	EnableVirtualLink    bool
+	// Default pairs
+	hasDefaultIoCallback   bool
+	DefaultIoCallback      func([]byte)
+	hasDefaultStorageClass bool
+	DefaultStorageClass    string
 }
 
 // parsePairStorageNew will parse Pair slice into *pairStorageNew
@@ -702,8 +779,58 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasWorkDir = true
 			result.WorkDir = v.Value.(string)
+		// Enable features
+		case "enable_virtual_dir":
+			if result.hasEnableVirtualDir {
+				continue
+			}
+			result.hasEnableVirtualDir = true
+			result.EnableVirtualDir = true
+		case "enable_virtual_link":
+			if result.hasEnableVirtualLink {
+				continue
+			}
+			result.hasEnableVirtualLink = true
+			result.EnableVirtualLink = true
+		// Default pairs
+		case "default_io_callback":
+			if result.hasDefaultIoCallback {
+				continue
+			}
+			result.hasDefaultIoCallback = true
+			result.DefaultIoCallback = v.Value.(func([]byte))
+		case "default_storage_class":
+			if result.hasDefaultStorageClass {
+				continue
+			}
+			result.hasDefaultStorageClass = true
+			result.DefaultStorageClass = v.Value.(string)
 		}
 	}
+
+	// Enable features
+	if result.hasEnableVirtualDir {
+		result.HasStorageFeatures = true
+		result.StorageFeatures.VirtualDir = true
+	}
+	if result.hasEnableVirtualLink {
+		result.HasStorageFeatures = true
+		result.StorageFeatures.VirtualLink = true
+	}
+
+	// Default pairs
+	if result.hasDefaultIoCallback {
+		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.Read = append(result.DefaultStoragePairs.Read, WithIoCallback(result.DefaultIoCallback))
+		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithIoCallback(result.DefaultIoCallback))
+		result.DefaultStoragePairs.WriteMultipart = append(result.DefaultStoragePairs.WriteMultipart, WithIoCallback(result.DefaultIoCallback))
+	}
+	if result.hasDefaultStorageClass {
+		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.CreateDir = append(result.DefaultStoragePairs.CreateDir, WithStorageClass(result.DefaultStorageClass))
+		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithStorageClass(result.DefaultStorageClass))
+	}
+
 	if !result.HasLocation {
 		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
@@ -1372,6 +1499,8 @@ type pairStorageWriteMultipart struct {
 	pairs                                    []Pair
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
+	HasIoCallback                            bool
+	IoCallback                               func([]byte)
 	HasServerSideEncryptionCustomerAlgorithm bool
 	ServerSideEncryptionCustomerAlgorithm    string
 	HasServerSideEncryptionCustomerKey       bool
@@ -1392,6 +1521,13 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
+			continue
+		case "io_callback":
+			if result.HasIoCallback {
+				continue
+			}
+			result.HasIoCallback = true
+			result.IoCallback = v.Value.(func([]byte))
 			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
