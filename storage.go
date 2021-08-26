@@ -745,6 +745,11 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
 		return
 	}
+
+	if opt.HasIoCallback {
+		r = iowrap.CallbackReader(r, opt.IoCallback)
+	}
+
 	input := &s3.UploadPartInput{
 		Bucket: &s.name,
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
