@@ -534,28 +534,48 @@ func (s *Storage) querySignHTTP(ctx context.Context, op string, path string, exp
 
 	switch op {
 	case opWrite:
-		putReq, _ := s.service.PutObjectRequest(&s3.PutObjectInput{
-			Bucket: aws.String(s.name),
-			Key:    aws.String(rp),
-		})
-		url, err := putReq.Presign(expire)
+		pairs, err := s.parsePairStorageWrite(opt.pairs)
 		if err != nil {
 			return nil, err
 		}
-		req, err = http.NewRequest("PUT", url, nil)
+		input := &s3.PutObjectInput{
+			Bucket: aws.String(s.name),
+			Key:    aws.String(rp),
+		}
+		if err = setPutObjectInput(pairs, input); err != nil {
+			return nil, err
+		}
+		putReq, _ := s.service.PutObjectRequest(input)
+		url, headers, err := putReq.PresignRequest(expire)
+		if err != nil {
+			return nil, err
+		}
+		if req, err = http.NewRequest("PUT", url, nil); req != nil {
+			req.Header = headers
+		}
 	case opRead:
-		getReq, _ := s.service.GetObjectRequest(&s3.GetObjectInput{
-			Bucket: aws.String(s.name),
-			Key:    aws.String(rp),
-		})
-		url, err := getReq.Presign(expire)
+		pairs, err := s.parsePairStorageRead(opt.pairs)
 		if err != nil {
 			return nil, err
 		}
-		req, err = http.NewRequest("GET", url, nil)
+		input := &s3.GetObjectInput{
+			Bucket: aws.String(s.name),
+			Key:    aws.String(rp),
+		}
+		if err = setGetObjectInput(pairs, input); err != nil {
+			return nil, err
+		}
+		getReq, _ := s.service.GetObjectRequest(input)
+		url, headers, err := getReq.PresignRequest(expire)
+		if err != nil {
+			return nil, err
+		}
+		if req, err = http.NewRequest("GET", url, nil); req != nil {
+			req.Header = headers
+		}
 	default:
 		req = nil
-		err = services.ErrRestrictionDissatisfied
+		err = services.ErrCapabilityInsufficient
 	}
 
 	return req, err
@@ -568,22 +588,8 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
 	}
-	if opt.HasOffset && opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
-	} else if opt.HasOffset && !opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=%d-", opt.Offset))
-	} else if !opt.HasOffset && opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=0-%d", opt.Size-1))
-	}
-
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
+	if err = setGetObjectInput(opt, input); err != nil {
+		return
 	}
 
 	output, err := s.service.GetObjectWithContext(ctx, input)
@@ -734,33 +740,8 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		ContentLength: &size,
 		Body:          aws.ReadSeekCloser(r),
 	}
-	if opt.HasContentMd5 {
-		input.ContentMD5 = &opt.ContentMd5
-	}
-	if opt.HasStorageClass {
-		input.StorageClass = &opt.StorageClass
-	}
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
-	}
-	if opt.HasServerSideEncryptionAwsKmsKeyID {
-		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
-	}
-	if opt.HasServerSideEncryptionContext {
-		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
-		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
-	}
-	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
+	if err = setPutObjectInput(opt, input); err != nil {
+		return
 	}
 
 	_, err = s.service.PutObjectWithContext(ctx, input)
@@ -779,6 +760,11 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
 		return
 	}
+
+	if opt.HasIoCallback {
+		r = iowrap.CallbackReader(r, opt.IoCallback)
+	}
+
 	input := &s3.UploadPartInput{
 		Bucket: &s.name,
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.

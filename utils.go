@@ -354,8 +354,63 @@ const (
 	writeSizeMaximum = 5 * 1024 * 1024 * 1024
 )
 
+// Operations that support HTTPSigner.
 const (
 	opWrite = typ.OpStoragerWrite
 	opRead  = typ.OpStoragerRead
-	// ...
 )
+
+func setGetObjectInput(opt pairStorageRead, input *s3.GetObjectInput) (err error) {
+	if opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
+	} else if opt.HasOffset && !opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-", opt.Offset))
+	} else if !opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=0-%d", opt.Size-1))
+	}
+
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func setPutObjectInput(opt pairStorageWrite, input *s3.PutObjectInput) (err error) {
+	if opt.HasContentMd5 {
+		input.ContentMD5 = &opt.ContentMd5
+	}
+	if opt.HasStorageClass {
+		input.StorageClass = &opt.StorageClass
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionBucketKeyEnabled {
+		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return
+		}
+	}
+	if opt.HasServerSideEncryptionAwsKmsKeyID {
+		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
+	}
+	if opt.HasServerSideEncryptionContext {
+		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
+		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = &opt.ServerSideEncryption
+	}
+
+	return nil
+}

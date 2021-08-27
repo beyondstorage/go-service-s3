@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	. "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
@@ -17,6 +18,7 @@ var _ services.ServiceError
 var _ httpclient.Options
 var _ time.Duration
 var _ http.Request
+var _ Error
 
 // Type is the type for s3
 const Type = "s3"
@@ -80,12 +82,32 @@ func setStorageSystemMetadata(s *StorageMeta, sm StorageSystemMetadata) {
 	s.SetSystemMetadata(sm)
 }
 
+// WithDefaultIoCallback will apply default_io_callback value to Options.
+//
+// IoCallback specify what todo every time we read data from source
+func WithDefaultIoCallback(v func([]byte)) Pair {
+	return Pair{
+		Key:   "default_io_callback",
+		Value: v,
+	}
+}
+
 // WithDefaultServicePairs will apply default_service_pairs value to Options.
 //
 // DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	return Pair{
 		Key:   "default_service_pairs",
+		Value: v,
+	}
+}
+
+// WithDefaultStorageClass will apply default_storage_class value to Options.
+//
+// StorageClass
+func WithDefaultStorageClass(v string) Pair {
+	return Pair{
+		Key:   "default_storage_class",
 		Value: v,
 	}
 }
@@ -276,7 +298,9 @@ var pairMap = map[string]string{
 	"context":                               "context.Context",
 	"continuation_token":                    "string",
 	"credential":                            "string",
+	"default_io_callback":                   "func([]byte)",
 	"default_service_pairs":                 "DefaultServicePairs",
+	"default_storage_class":                 "string",
 	"default_storage_pairs":                 "DefaultStoragePairs",
 	"disable_100_continue":                  "bool",
 	"enable_virtual_dir":                    "bool",
@@ -339,6 +363,8 @@ type pairServiceNew struct {
 	UseAccelerate          bool
 	HasUseArnRegion        bool
 	UseArnRegion           bool
+	// Enable features
+	// Default pairs
 }
 
 // parsePairServiceNew will parse Pair slice into *pairServiceNew
@@ -405,8 +431,15 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasUseArnRegion = true
 			result.UseArnRegion = v.Value.(bool)
+			// Enable features
+			// Default pairs
 		}
 	}
+
+	// Enable features
+
+	// Default pairs
+
 	if !result.HasCredential {
 		return pairServiceNew{}, services.PairRequiredError{Keys: []string{"credential"}}
 	}
@@ -695,6 +728,16 @@ type pairStorageNew struct {
 	StorageFeatures        StorageFeatures
 	HasWorkDir             bool
 	WorkDir                string
+	// Enable features
+	hasEnableVirtualDir  bool
+	EnableVirtualDir     bool
+	hasEnableVirtualLink bool
+	EnableVirtualLink    bool
+	// Default pairs
+	hasDefaultIoCallback   bool
+	DefaultIoCallback      func([]byte)
+	hasDefaultStorageClass bool
+	DefaultStorageClass    string
 }
 
 // parsePairStorageNew will parse Pair slice into *pairStorageNew
@@ -737,8 +780,58 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasWorkDir = true
 			result.WorkDir = v.Value.(string)
+		// Enable features
+		case "enable_virtual_dir":
+			if result.hasEnableVirtualDir {
+				continue
+			}
+			result.hasEnableVirtualDir = true
+			result.EnableVirtualDir = true
+		case "enable_virtual_link":
+			if result.hasEnableVirtualLink {
+				continue
+			}
+			result.hasEnableVirtualLink = true
+			result.EnableVirtualLink = true
+		// Default pairs
+		case "default_io_callback":
+			if result.hasDefaultIoCallback {
+				continue
+			}
+			result.hasDefaultIoCallback = true
+			result.DefaultIoCallback = v.Value.(func([]byte))
+		case "default_storage_class":
+			if result.hasDefaultStorageClass {
+				continue
+			}
+			result.hasDefaultStorageClass = true
+			result.DefaultStorageClass = v.Value.(string)
 		}
 	}
+
+	// Enable features
+	if result.hasEnableVirtualDir {
+		result.HasStorageFeatures = true
+		result.StorageFeatures.VirtualDir = true
+	}
+	if result.hasEnableVirtualLink {
+		result.HasStorageFeatures = true
+		result.StorageFeatures.VirtualLink = true
+	}
+
+	// Default pairs
+	if result.hasDefaultIoCallback {
+		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.Read = append(result.DefaultStoragePairs.Read, WithIoCallback(result.DefaultIoCallback))
+		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithIoCallback(result.DefaultIoCallback))
+		result.DefaultStoragePairs.WriteMultipart = append(result.DefaultStoragePairs.WriteMultipart, WithIoCallback(result.DefaultIoCallback))
+	}
+	if result.hasDefaultStorageClass {
+		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.CreateDir = append(result.DefaultStoragePairs.CreateDir, WithStorageClass(result.DefaultStorageClass))
+		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithStorageClass(result.DefaultStorageClass))
+	}
+
 	if !result.HasLocation {
 		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
@@ -1431,6 +1524,8 @@ type pairStorageWriteMultipart struct {
 	pairs                                    []Pair
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
+	HasIoCallback                            bool
+	IoCallback                               func([]byte)
 	HasServerSideEncryptionCustomerAlgorithm bool
 	ServerSideEncryptionCustomerAlgorithm    string
 	HasServerSideEncryptionCustomerKey       bool
@@ -1451,6 +1546,13 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
+			continue
+		case "io_callback":
+			if result.HasIoCallback {
+				continue
+			}
+			result.HasIoCallback = true
+			result.IoCallback = v.Value.(func([]byte))
 			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {

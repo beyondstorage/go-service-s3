@@ -12,7 +12,7 @@ import (
 )
 
 func setupTest(t *testing.T) types.Storager {
-	t.Log("Setup test for qingstor")
+	t.Log("Setup test for s3")
 
 	store, err := s3.NewStorager(
 		ps.WithCredential(os.Getenv("STORAGE_S3_CREDENTIAL")),
