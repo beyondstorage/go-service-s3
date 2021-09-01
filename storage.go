@@ -529,66 +529,62 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	return nil
 }
 
-func (s *Storage) querySignHTTP(ctx context.Context, op string, path string, expire time.Duration, opt pairStorageQuerySignHTTP) (req *http.Request, err error) {
-	rp := s.getAbsPath(path)
-
-	switch op {
-	case opWrite:
-		pairs, err := s.parsePairStorageWrite(opt.pairs)
-		if err != nil {
-			return nil, err
-		}
-		input := &s3.PutObjectInput{
-			Bucket: aws.String(s.name),
-			Key:    aws.String(rp),
-		}
-		if err = setPutObjectInput(pairs, input); err != nil {
-			return nil, err
-		}
-		putReq, _ := s.service.PutObjectRequest(input)
-		url, headers, err := putReq.PresignRequest(expire)
-		if err != nil {
-			return nil, err
-		}
-		if req, err = http.NewRequest("PUT", url, nil); req != nil {
-			req.Header = headers
-		}
-	case opRead:
-		pairs, err := s.parsePairStorageRead(opt.pairs)
-		if err != nil {
-			return nil, err
-		}
-		input := &s3.GetObjectInput{
-			Bucket: aws.String(s.name),
-			Key:    aws.String(rp),
-		}
-		if err = setGetObjectInput(pairs, input); err != nil {
-			return nil, err
-		}
-		getReq, _ := s.service.GetObjectRequest(input)
-		url, headers, err := getReq.PresignRequest(expire)
-		if err != nil {
-			return nil, err
-		}
-		if req, err = http.NewRequest("GET", url, nil); req != nil {
-			req.Header = headers
-		}
-	default:
-		req = nil
-		err = services.ErrCapabilityInsufficient
+func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire time.Duration, opt pairStorageQuerySignHTTPRead) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageRead(opt.pairs)
+	if err != nil {
+		return
 	}
 
-	return req, err
+	input, err := s.formatGetObjectInput(path, pairs)
+	if err != nil {
+		return
+	}
+
+	getReq, _ := s.service.GetObjectRequest(input)
+	url, headers, err := getReq.PresignRequest(expire)
+	if err != nil {
+		return
+	}
+
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header = headers
+	return
+}
+
+func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int64, expire time.Duration, opt pairStorageQuerySignHTTPWrite) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageWrite(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := s.formatPutObjectInput(path, size, pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	putReq, _ := s.service.PutObjectRequest(input)
+	url, headers, err := putReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header = headers
+	req.ContentLength = size
+	return
 }
 
 func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairStorageRead) (n int64, err error) {
-	rp := s.getAbsPath(path)
-
-	input := &s3.GetObjectInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(rp),
-	}
-	if err = setGetObjectInput(opt, input); err != nil {
+	input, err := s.formatGetObjectInput(path, opt)
+	if err != nil {
 		return
 	}
 
@@ -732,18 +728,12 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
 
-	rp := s.getAbsPath(path)
-
-	input := &s3.PutObjectInput{
-		Bucket:        aws.String(s.name),
-		Key:           aws.String(rp),
-		ContentLength: &size,
-		Body:          aws.ReadSeekCloser(r),
-	}
-	if err = setPutObjectInput(opt, input); err != nil {
+	input, err := s.formatPutObjectInput(path, size, opt)
+	if err != nil {
 		return
 	}
 
+	input.Body = aws.ReadSeekCloser(r)
 	_, err = s.service.PutObjectWithContext(ctx, input)
 	if err != nil {
 		return

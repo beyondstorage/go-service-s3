@@ -17,8 +17,7 @@ optional = ["location"]
 
 [namespace.storage]
 features = ["virtual_dir", "virtual_link"]
-implement = ["direr", "http_signer", "linker", "multiparter",]
-defaultable = ["io_callback", "storage_class"]
+implement = ["direr", "storage_http_signer", "linker", "multiparter",]
 
 [namespace.storage.new]
 required = ["location", "name"]
@@ -91,6 +90,7 @@ description = "set default pairs for storager actions"
 
 [pairs.storage_class]
 type = "string"
+defaultable = true
 
 [pairs.server_side_encryption_bucket_key_enabled]
 type = "bool"

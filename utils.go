@@ -51,7 +51,7 @@ type Storage struct {
 	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
 	typ.UnimplementedLinker
-	typ.UnimplementedHTTPSigner
+	typ.UnimplementedStorageHTTPSigner
 }
 
 // String implements Storager.String
@@ -354,13 +354,14 @@ const (
 	writeSizeMaximum = 5 * 1024 * 1024 * 1024
 )
 
-// Operations that support HTTPSigner.
-const (
-	opWrite = typ.OpStoragerWrite
-	opRead  = typ.OpStoragerRead
-)
+func (s *Storage) formatGetObjectInput(path string, opt pairStorageRead) (input *s3.GetObjectInput, err error) {
+	rp := s.getAbsPath(path)
 
-func setGetObjectInput(opt pairStorageRead, input *s3.GetObjectInput) (err error) {
+	input = &s3.GetObjectInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(rp),
+	}
+
 	if opt.HasOffset && opt.HasSize {
 		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
 	} else if opt.HasOffset && !opt.HasSize {
@@ -375,14 +376,22 @@ func setGetObjectInput(opt pairStorageRead, input *s3.GetObjectInput) (err error
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
 		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return
 }
 
-func setPutObjectInput(opt pairStorageWrite, input *s3.PutObjectInput) (err error) {
+func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageWrite) (input *s3.PutObjectInput, err error) {
+	rp := s.getAbsPath(path)
+
+	input = &s3.PutObjectInput{
+		Bucket:        aws.String(s.name),
+		Key:           aws.String(rp),
+		ContentLength: aws.Int64(size),
+	}
+
 	if opt.HasContentMd5 {
 		input.ContentMD5 = &opt.ContentMd5
 	}
@@ -398,7 +407,7 @@ func setPutObjectInput(opt pairStorageWrite, input *s3.PutObjectInput) (err erro
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
 		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 	if opt.HasServerSideEncryptionAwsKmsKeyID {
@@ -412,5 +421,5 @@ func setPutObjectInput(opt pairStorageWrite, input *s3.PutObjectInput) (err erro
 		input.ServerSideEncryption = &opt.ServerSideEncryption
 	}
 
-	return nil
+	return
 }
