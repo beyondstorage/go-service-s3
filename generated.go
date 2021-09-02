@@ -82,32 +82,12 @@ func setStorageSystemMetadata(s *StorageMeta, sm StorageSystemMetadata) {
 	s.SetSystemMetadata(sm)
 }
 
-// WithDefaultIoCallback will apply default_io_callback value to Options.
-//
-// IoCallback specify what todo every time we read data from source
-func WithDefaultIoCallback(v func([]byte)) Pair {
-	return Pair{
-		Key:   "default_io_callback",
-		Value: v,
-	}
-}
-
 // WithDefaultServicePairs will apply default_service_pairs value to Options.
 //
 // DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
 	return Pair{
 		Key:   "default_service_pairs",
-		Value: v,
-	}
-}
-
-// WithDefaultStorageClass will apply default_storage_class value to Options.
-//
-// StorageClass
-func WithDefaultStorageClass(v string) Pair {
-	return Pair{
-		Key:   "default_storage_class",
 		Value: v,
 	}
 }
@@ -298,9 +278,9 @@ var pairMap = map[string]string{
 	"context":                               "context.Context",
 	"continuation_token":                    "string",
 	"credential":                            "string",
+	"default_content_type":                  "string",
 	"default_io_callback":                   "func([]byte)",
 	"default_service_pairs":                 "DefaultServicePairs",
-	"default_storage_class":                 "string",
 	"default_storage_pairs":                 "DefaultStoragePairs",
 	"disable_100_continue":                  "bool",
 	"enable_virtual_dir":                    "bool",
@@ -733,10 +713,10 @@ type pairStorageNew struct {
 	hasEnableVirtualLink bool
 	EnableVirtualLink    bool
 	// Default pairs
-	hasDefaultIoCallback   bool
-	DefaultIoCallback      func([]byte)
-	hasDefaultStorageClass bool
-	DefaultStorageClass    string
+	hasDefaultContentType bool
+	DefaultContentType    string
+	hasDefaultIoCallback  bool
+	DefaultIoCallback     func([]byte)
 }
 
 // parsePairStorageNew will parse Pair slice into *pairStorageNew
@@ -793,18 +773,18 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			result.hasEnableVirtualLink = true
 			result.EnableVirtualLink = true
 		// Default pairs
+		case "default_content_type":
+			if result.hasDefaultContentType {
+				continue
+			}
+			result.hasDefaultContentType = true
+			result.DefaultContentType = v.Value.(string)
 		case "default_io_callback":
 			if result.hasDefaultIoCallback {
 				continue
 			}
 			result.hasDefaultIoCallback = true
 			result.DefaultIoCallback = v.Value.(func([]byte))
-		case "default_storage_class":
-			if result.hasDefaultStorageClass {
-				continue
-			}
-			result.hasDefaultStorageClass = true
-			result.DefaultStorageClass = v.Value.(string)
 		}
 	}
 
@@ -819,16 +799,15 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 	}
 
 	// Default pairs
+	if result.hasDefaultContentType {
+		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithContentType(result.DefaultContentType))
+	}
 	if result.hasDefaultIoCallback {
 		result.HasDefaultStoragePairs = true
 		result.DefaultStoragePairs.Read = append(result.DefaultStoragePairs.Read, WithIoCallback(result.DefaultIoCallback))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithIoCallback(result.DefaultIoCallback))
 		result.DefaultStoragePairs.WriteMultipart = append(result.DefaultStoragePairs.WriteMultipart, WithIoCallback(result.DefaultIoCallback))
-	}
-	if result.hasDefaultStorageClass {
-		result.HasDefaultStoragePairs = true
-		result.DefaultStoragePairs.CreateDir = append(result.DefaultStoragePairs.CreateDir, WithStorageClass(result.DefaultStorageClass))
-		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithStorageClass(result.DefaultStorageClass))
 	}
 
 	if !result.HasLocation {
