@@ -34,3 +34,11 @@ func TestLinker(t *testing.T) {
 	}
 	tests.TestLinker(t, setupTest(t))
 }
+
+func TestHTTPSigner(t *testing.T) {
+	if os.Getenv("STORAGE_S3_INTEGRATION_TEST") != "on" {
+		t.Skipf("STORAGE_S3_INTEGRATION_TEST is not 'on', skipped")
+	}
+	tests.TestStorageHTTPSignerWrite(t, setupTest(t))
+	tests.TestStorageHTTPSignerRead(t, setupTest(t))
+}

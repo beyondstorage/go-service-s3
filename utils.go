@@ -51,6 +51,7 @@ type Storage struct {
 	typ.UnimplementedDirer
 	typ.UnimplementedMultiparter
 	typ.UnimplementedLinker
+	typ.UnimplementedStorageHTTPSigner
 }
 
 // String implements Storager.String
@@ -352,3 +353,73 @@ const (
 	// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html
 	writeSizeMaximum = 5 * 1024 * 1024 * 1024
 )
+
+func (s *Storage) formatGetObjectInput(path string, opt pairStorageRead) (input *s3.GetObjectInput, err error) {
+	rp := s.getAbsPath(path)
+
+	input = &s3.GetObjectInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(rp),
+	}
+
+	if opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
+	} else if opt.HasOffset && !opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=%d-", opt.Offset))
+	} else if !opt.HasOffset && opt.HasSize {
+		input.Range = aws.String(fmt.Sprintf("bytes=0-%d", opt.Size-1))
+	}
+
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return
+}
+
+func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageWrite) (input *s3.PutObjectInput, err error) {
+	rp := s.getAbsPath(path)
+
+	input = &s3.PutObjectInput{
+		Bucket:        aws.String(s.name),
+		Key:           aws.String(rp),
+		ContentLength: aws.Int64(size),
+	}
+
+	if opt.HasContentMd5 {
+		input.ContentMD5 = &opt.ContentMd5
+	}
+	if opt.HasStorageClass {
+		input.StorageClass = &opt.StorageClass
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionBucketKeyEnabled {
+		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if opt.HasServerSideEncryptionAwsKmsKeyID {
+		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
+	}
+	if opt.HasServerSideEncryptionContext {
+		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
+		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = &opt.ServerSideEncryption
+	}
+
+	return
+}

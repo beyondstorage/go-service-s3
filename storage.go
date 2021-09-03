@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -527,29 +529,63 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	return nil
 }
 
+func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire time.Duration, opt pairStorageQuerySignHTTPRead) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageRead(opt.pairs)
+	if err != nil {
+		return
+	}
+
+	input, err := s.formatGetObjectInput(path, pairs)
+	if err != nil {
+		return
+	}
+
+	getReq, _ := s.service.GetObjectRequest(input)
+	url, headers, err := getReq.PresignRequest(expire)
+	if err != nil {
+		return
+	}
+
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header = headers
+	return
+}
+
+func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int64, expire time.Duration, opt pairStorageQuerySignHTTPWrite) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageWrite(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := s.formatPutObjectInput(path, size, pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	putReq, _ := s.service.PutObjectRequest(input)
+	url, headers, err := putReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header = headers
+	req.ContentLength = size
+	return
+}
+
 func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairStorageRead) (n int64, err error) {
-	rp := s.getAbsPath(path)
-
-	input := &s3.GetObjectInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(rp),
-	}
-	if opt.HasOffset && opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=%d-%d", opt.Offset, opt.Offset+opt.Size-1))
-	} else if opt.HasOffset && !opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=%d-", opt.Offset))
-	} else if !opt.HasOffset && opt.HasSize {
-		input.Range = aws.String(fmt.Sprintf("bytes=0-%d", opt.Size-1))
-	}
-
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
+	input, err := s.formatGetObjectInput(path, opt)
+	if err != nil {
+		return
 	}
 
 	output, err := s.service.GetObjectWithContext(ctx, input)
@@ -692,43 +728,12 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
 
-	rp := s.getAbsPath(path)
-
-	input := &s3.PutObjectInput{
-		Bucket:        aws.String(s.name),
-		Key:           aws.String(rp),
-		ContentLength: &size,
-		Body:          aws.ReadSeekCloser(r),
-	}
-	if opt.HasContentMd5 {
-		input.ContentMD5 = &opt.ContentMd5
-	}
-	if opt.HasStorageClass {
-		input.StorageClass = &opt.StorageClass
-	}
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
-	}
-	if opt.HasServerSideEncryptionAwsKmsKeyID {
-		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
-	}
-	if opt.HasServerSideEncryptionContext {
-		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
-		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
-	}
-	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
+	input, err := s.formatPutObjectInput(path, size, opt)
+	if err != nil {
+		return
 	}
 
+	input.Body = aws.ReadSeekCloser(r)
 	_, err = s.service.PutObjectWithContext(ctx, input)
 	if err != nil {
 		return
