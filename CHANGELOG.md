@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.4.0] - 2021-09-03
+
+### Added
+
+- feat: Support offset and size for read (#157)
+- feat: Implement CreateLink and setup linker test in go-service-s3 (#175)
+- rfcs: RFC-178 Add Virtual Link Support (#178)
+- feat: Implement StorageHTTPSigner (#191)
+- feat: Add IoCallback for multipart (#196)
+
+### Changed
+
+- ci: Migrate integration tests to self hosted teamcity (#190)
+
+### Fixed
+
+- feat: Resolve null pointer problem when metadata undefined (#185)
+- feat: IoCallback in WriteMultipart not supported correctly (#198)
+
+### Upgraded
+
+- build(deps): Bump github.com/aws/aws-sdk-go from 1.40.1 to 1.40.36 (#205)
+
 ## [v2.3.0] - 2021-07-16
 
 ### Added
@@ -113,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
+[v2.4.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.3.0...v2.4.0
 [v2.3.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.0.0...v2.1.0
