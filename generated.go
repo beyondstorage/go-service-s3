@@ -821,6 +821,7 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 	// Default pairs
 	if result.hasDefaultContentType {
 		result.HasDefaultStoragePairs = true
+		result.DefaultStoragePairs.QuerySignHTTPWrite = append(result.DefaultStoragePairs.QuerySignHTTPWrite, WithContentType(result.DefaultContentType))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithContentType(result.DefaultContentType))
 	}
 	if result.hasDefaultIoCallback {
@@ -832,6 +833,7 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 	if result.hasDefaultStorageClass {
 		result.HasDefaultStoragePairs = true
 		result.DefaultStoragePairs.CreateDir = append(result.DefaultStoragePairs.CreateDir, WithStorageClass(result.DefaultStorageClass))
+		result.DefaultStoragePairs.QuerySignHTTPWrite = append(result.DefaultStoragePairs.QuerySignHTTPWrite, WithStorageClass(result.DefaultStorageClass))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithStorageClass(result.DefaultStorageClass))
 	}
 
@@ -1235,7 +1237,17 @@ func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, er
 
 // pairStorageQuerySignHTTPRead is the parsed struct
 type pairStorageQuerySignHTTPRead struct {
-	pairs []Pair
+	pairs                                    []Pair
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasOffset                                bool
+	Offset                                   int64
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
+	HasSize                                  bool
+	Size                                     int64
 }
 
 // parsePairStorageQuerySignHTTPRead will parse Pair slice into *pairStorageQuerySignHTTPRead
@@ -1246,6 +1258,41 @@ func (s *Storage) parsePairStorageQuerySignHTTPRead(opts []Pair) (pairStorageQue
 
 	for _, v := range opts {
 		switch v.Key {
+		case "excepted_bucket_owner":
+			if result.HasExceptedBucketOwner {
+				continue
+			}
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+			continue
+		case "offset":
+			if result.HasOffset {
+				continue
+			}
+			result.HasOffset = true
+			result.Offset = v.Value.(int64)
+			continue
+		case "server_side_encryption_customer_algorithm":
+			if result.HasServerSideEncryptionCustomerAlgorithm {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+			continue
+		case "server_side_encryption_customer_key":
+			if result.HasServerSideEncryptionCustomerKey {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
+			continue
+		case "size":
+			if result.HasSize {
+				continue
+			}
+			result.HasSize = true
+			result.Size = v.Value.(int64)
+			continue
 		default:
 			return pairStorageQuerySignHTTPRead{}, services.PairUnsupportedError{Pair: v}
 		}
@@ -1258,7 +1305,27 @@ func (s *Storage) parsePairStorageQuerySignHTTPRead(opts []Pair) (pairStorageQue
 
 // pairStorageQuerySignHTTPWrite is the parsed struct
 type pairStorageQuerySignHTTPWrite struct {
-	pairs []Pair
+	pairs                                    []Pair
+	HasContentMd5                            bool
+	ContentMd5                               string
+	HasContentType                           bool
+	ContentType                              string
+	HasExceptedBucketOwner                   bool
+	ExceptedBucketOwner                      string
+	HasServerSideEncryption                  bool
+	ServerSideEncryption                     string
+	HasServerSideEncryptionAwsKmsKeyID       bool
+	ServerSideEncryptionAwsKmsKeyID          string
+	HasServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionBucketKeyEnabled     bool
+	HasServerSideEncryptionContext           bool
+	ServerSideEncryptionContext              string
+	HasServerSideEncryptionCustomerAlgorithm bool
+	ServerSideEncryptionCustomerAlgorithm    string
+	HasServerSideEncryptionCustomerKey       bool
+	ServerSideEncryptionCustomerKey          []byte
+	HasStorageClass                          bool
+	StorageClass                             string
 }
 
 // parsePairStorageQuerySignHTTPWrite will parse Pair slice into *pairStorageQuerySignHTTPWrite
@@ -1269,6 +1336,76 @@ func (s *Storage) parsePairStorageQuerySignHTTPWrite(opts []Pair) (pairStorageQu
 
 	for _, v := range opts {
 		switch v.Key {
+		case "content_md5":
+			if result.HasContentMd5 {
+				continue
+			}
+			result.HasContentMd5 = true
+			result.ContentMd5 = v.Value.(string)
+			continue
+		case "content_type":
+			if result.HasContentType {
+				continue
+			}
+			result.HasContentType = true
+			result.ContentType = v.Value.(string)
+			continue
+		case "excepted_bucket_owner":
+			if result.HasExceptedBucketOwner {
+				continue
+			}
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+			continue
+		case "server_side_encryption":
+			if result.HasServerSideEncryption {
+				continue
+			}
+			result.HasServerSideEncryption = true
+			result.ServerSideEncryption = v.Value.(string)
+			continue
+		case "server_side_encryption_aws_kms_key_id":
+			if result.HasServerSideEncryptionAwsKmsKeyID {
+				continue
+			}
+			result.HasServerSideEncryptionAwsKmsKeyID = true
+			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
+			continue
+		case "server_side_encryption_bucket_key_enabled":
+			if result.HasServerSideEncryptionBucketKeyEnabled {
+				continue
+			}
+			result.HasServerSideEncryptionBucketKeyEnabled = true
+			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
+			continue
+		case "server_side_encryption_context":
+			if result.HasServerSideEncryptionContext {
+				continue
+			}
+			result.HasServerSideEncryptionContext = true
+			result.ServerSideEncryptionContext = v.Value.(string)
+			continue
+		case "server_side_encryption_customer_algorithm":
+			if result.HasServerSideEncryptionCustomerAlgorithm {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerAlgorithm = true
+			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
+			continue
+		case "server_side_encryption_customer_key":
+			if result.HasServerSideEncryptionCustomerKey {
+				continue
+			}
+			result.HasServerSideEncryptionCustomerKey = true
+			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
+			continue
+		case "storage_class":
+			if result.HasStorageClass {
+				continue
+			}
+			result.HasStorageClass = true
+			result.StorageClass = v.Value.(string)
+			continue
 		default:
 			return pairStorageQuerySignHTTPWrite{}, services.PairUnsupportedError{Pair: v}
 		}

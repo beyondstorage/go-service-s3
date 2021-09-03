@@ -17,7 +17,7 @@ optional = ["location"]
 
 [namespace.storage]
 features = ["virtual_dir", "virtual_link"]
-implement = ["direr", "storage_http_signer", "linker", "multiparter",]
+implement = ["direr", "linker", "multiparter", "storage_http_signer"]
 
 [namespace.storage.new]
 required = ["location", "name"]
@@ -55,6 +55,12 @@ optional = ["excepted_bucket_owner"]
 
 [namespace.storage.op.complete_multipart]
 optional = ["excepted_bucket_owner"]
+
+[namespace.storage.op.query_sign_http_read]
+optional = ["excepted_bucket_owner", "offset", "size", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key"]
+
+[namespace.storage.op.query_sign_http_write]
+optional = ["content_md5", "content_type", "excepted_bucket_owner", "storage_class", "server_side_encryption_bucket_key_enabled", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
 
 [pairs.service_features]
 type = "ServiceFeatures"
