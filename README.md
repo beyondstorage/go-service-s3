@@ -24,13 +24,13 @@ import (
 )
 
 func main() {
-    store, err := services.NewStoragerFromString("s3://bucket_name/path/to/workdir")
+	store, err := services.NewStoragerFromString("s3://bucket_name/path/to/workdir")
 	if err != nil {
 		log.Fatal(err)
-    }
+	}
 
-    // Write data from io.Reader into hello.txt
-    n, err := store.Write("hello.txt", r, length)
+	// Write data from io.Reader into hello.txt
+	n, err := store.Write("hello.txt", r, length)
 }
 ```
 
