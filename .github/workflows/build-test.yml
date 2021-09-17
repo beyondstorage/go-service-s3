@@ -1,10 +1,10 @@
-name: "gofmt"
+name: "Build Test"
 
 on: [ push,pull_request ]
 
 jobs:
-  gofmt:
-    name: gofmt
+  build_test:
+    name: Build Test
     runs-on: ubuntu-latest
 
     steps:
@@ -18,3 +18,9 @@ jobs:
 
       - name: Format
         run: if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then exit 1; fi
+
+      - name: Build
+        run: make build
+
+      - name: Git Diff
+        run: if [ "$(git diff | wc -l)" -gt 0 ]; then exit 1; fi
