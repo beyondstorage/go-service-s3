@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -722,6 +723,16 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	if size > writeSizeMaximum {
 		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
 		return
+	}
+
+	// According to GSP-751, we should allow the user to pass in a nil io.Reader.
+	// ref: https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/751-write-empty-file-behavior.md
+	if r == nil && size == 0 {
+		r = bytes.NewReader([]byte{})
+	} else if r == nil && size != 0 {
+		return 0, fmt.Errorf("reader is nil but size is not 0")
+	} else {
+		r = io.LimitReader(r, size)
 	}
 
 	if opt.HasIoCallback {
