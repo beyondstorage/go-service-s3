@@ -4,7 +4,7 @@ name = "s3"
 
 [namespace.service.new]
 required = ["credential"]
-optional = ["service_features", "default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
+optional = ["endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
 
 [namespace.service.op.create]
 required = ["location"]
@@ -21,7 +21,7 @@ implement = ["direr", "linker", "multiparter", "storage_http_signer"]
 
 [namespace.storage.new]
 required = ["location", "name"]
-optional = ["storage_features", "default_storage_pairs", "work_dir"]
+optional = ["work_dir"]
 
 [namespace.storage.op.create]
 optional = ["multipart_id", "object_mode"]
@@ -62,14 +62,6 @@ optional = ["excepted_bucket_owner", "offset", "size", "server_side_encryption_c
 [namespace.storage.op.query_sign_http_write]
 optional = ["content_md5", "content_type", "excepted_bucket_owner", "storage_class", "server_side_encryption_bucket_key_enabled", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
 
-[pairs.service_features]
-type = "ServiceFeatures"
-description = "set service features"
-
-[pairs.default_service_pairs]
-type = "DefaultServicePairs"
-description = "set default pairs for service actions"
-
 [pairs.force_path_style]
 type = "bool"
 description = "see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets"
@@ -85,14 +77,6 @@ description = "set this to `true` to enable S3 Accelerate feature"
 [pairs.use_arn_region]
 type = "bool"
 description = "set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter"
-
-[pairs.storage_features]
-type = "StorageFeatures"
-description = "set storage features"
-
-[pairs.default_storage_pairs]
-type = "DefaultStoragePairs"
-description = "set default pairs for storager actions"
 
 [pairs.storage_class]
 type = "string"
