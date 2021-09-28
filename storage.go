@@ -572,8 +572,7 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 	}
 
 	presignClient := s3.NewPresignClient(s.service)
-
-	putReq, _ := presignClient.PutObjectRequest(cfg, input)
+	putReq, _ := presignClient.PresignPutObject(ctx, input)
 	url, headers, err := putReq.PresignRequest(expire)
 	if err != nil {
 		return nil, err

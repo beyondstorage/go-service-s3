@@ -107,7 +107,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, ""))
 	case credential.ProtocolEnv:
-		cfg.Credentials = credentials.NewCredentials() //todo
+		cfg.Credentials = credentials.NewEnvCredentials() //todo
 	default:
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
