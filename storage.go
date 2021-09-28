@@ -9,10 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
@@ -42,7 +41,7 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 
-	_, err = s.service.CompleteMultipartUploadWithContext(ctx, input)
+	_, err = s.service.CompleteMultipartUpload(ctx, input)
 	if err != nil {
 		return
 	}
