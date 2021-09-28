@@ -104,7 +104,6 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	switch cp.Protocol() {
 	case credential.ProtocolHmac:
 		ak, sk := cp.Hmac()
-
 		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, ""))
 	case credential.ProtocolEnv:
 		cfg.Credentials = credentials.NewCredentials()

@@ -26,7 +26,7 @@ func (s *Service) create(ctx context.Context, name string, opt pairServiceCreate
 		},
 	}
 
-	_, err = s.service.CreateBucket(input)
+	_, err = s.service.CreateBucket(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *Service) delete(ctx context.Context, name string, opt pairServiceDelete
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 
-	_, err = s.service.DeleteBucket(input)
+	_, err = s.service.DeleteBucket(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (s *Service) list(ctx context.Context, opt pairServiceList) (it *StoragerIt
 }
 
 func (s *Service) nextStoragePage(ctx context.Context, page *StoragerPage) error {
-	output, err := s.service.ListBucketsWithContext(ctx, &s3.ListBucketsInput{})
+	output, err := s.service.ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
 		return err
 	}
