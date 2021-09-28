@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/credentials"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -105,9 +105,9 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	case credential.ProtocolHmac:
 		ak, sk := cp.Hmac()
 
-		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, ""))
+		cfg.Credentials, err = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, "")).Retrieve()
 	case credential.ProtocolEnv:
-		cfg.Credentials = credentials.NewEnvCredentials() //todo
+		cfg.Credentials = credentials.NewCredentials() //todo
 	default:
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}

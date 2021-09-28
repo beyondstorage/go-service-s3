@@ -237,7 +237,7 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.ID = rp
 	o.Path = path
 	o.Mode |= ModePart
-	o.SetMultipartID(*aws.String(*output.UploadId))
+	o.SetMultipartID(aws.ToString(output.UploadId))
 
 	var sm ObjectSystemMetadata
 	if v := string(output.ServerSideEncryption); v != "" {
@@ -490,7 +490,7 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 	}
 
 	input.keyMarker = *aws.String(*output.KeyMarker)
-	input.uploadIdMarker = *aws.String(*output.UploadIdMarker)
+	input.uploadIdMarker = aws.ToString(output.UploadIdMarker)
 	return nil
 }
 
