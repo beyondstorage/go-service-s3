@@ -1,19 +1,19 @@
 package s3
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/credentials"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/aws/aws-sdk-go/service/s3"
 
-	"github.com/beyondstorage/go-endpoint"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
@@ -23,9 +23,8 @@ import (
 
 // Service is the s3 service config.
 type Service struct {
-	sess    *session.Session
-	service *s3.S3
-
+	cfg          *aws.Config
+	service      *s3.Client
 	defaultPairs DefaultServicePairs
 	features     ServiceFeatures
 
@@ -39,7 +38,7 @@ func (s *Service) String() string {
 
 // Storage is the s3 object storage service.
 type Storage struct {
-	service *s3.S3
+	service *s3.Client
 
 	name    string
 	workDir string
@@ -90,48 +89,13 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
-	cfg := aws.NewConfig()
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-west-2"))
+	if err != nil {
+		return nil, err
+	}
 
 	// Set s3 config's http client
 	cfg.HTTPClient = httpclient.New(opt.HTTPClientOptions)
-
-	// S3 SDK will compute content MD5 by default. But we will let users calculate content MD5 and pass into as a pair `Content-MD5` in our design.
-	// So we need to disable the auto content MD5 validation here.
-	cfg.S3DisableContentMD5Validation = aws.Bool(true)
-	// s3 sdk By default, unmasked keys are written as a map key, the first letter and any letters after the hyphen will be capitalised and the rest lowercase.
-	// We need to make all letters lowercase,
-	// so we need to set the API response header mapping here to decrypt to normalised lowercase mapping keys.
-	cfg.LowerCaseHeaderMaps = aws.Bool(true)
-
-	if opt.HasEndpoint {
-		ep, err := endpoint.Parse(opt.Endpoint)
-		if err != nil {
-			return nil, err
-		}
-
-		var url string
-		switch ep.Protocol() {
-		case endpoint.ProtocolHTTP:
-			url, _, _ = ep.HTTP()
-		case endpoint.ProtocolHTTPS:
-			url, _, _ = ep.HTTPS()
-		default:
-			return nil, services.PairUnsupportedError{Pair: ps.WithEndpoint(opt.Endpoint)}
-		}
-		cfg = cfg.WithEndpoint(url)
-	}
-	if opt.HasForcePathStyle {
-		cfg = cfg.WithS3ForcePathStyle(opt.ForcePathStyle)
-	}
-	if opt.HasDisable100Continue {
-		cfg = cfg.WithS3Disable100Continue(opt.Disable100Continue)
-	}
-	if opt.HasUseAccelerate {
-		cfg = cfg.WithS3Disable100Continue(opt.UseAccelerate)
-	}
-	if opt.HasUseArnRegion {
-		cfg = cfg.WithS3UseARNRegion(opt.UseArnRegion)
-	}
 
 	cp, err := credential.Parse(opt.Credential)
 	if err != nil {
@@ -141,21 +105,16 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	case credential.ProtocolHmac:
 		ak, sk := cp.Hmac()
 
-		cfg = cfg.WithCredentials(credentials.NewStaticCredentials(ak, sk, ""))
+		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, ""))
 	case credential.ProtocolEnv:
-		cfg = cfg.WithCredentials(credentials.NewEnvCredentials())
+		cfg.Credentials = credentials.NewCredentials() //todo
 	default:
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 
-	sess, err := session.NewSession(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	srv = &Service{
-		sess:    sess,
-		service: newS3Service(sess),
+		cfg:     &cfg,
+		service: newS3Service(&cfg),
 	}
 
 	if opt.HasDefaultServicePairs {
@@ -184,13 +143,13 @@ func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, er
 
 // All available storage classes are listed here.
 const (
-	StorageClassStandard           = s3.ObjectStorageClassStandard
-	StorageClassReducedRedundancy  = s3.ObjectStorageClassReducedRedundancy
-	StorageClassGlacier            = s3.ObjectStorageClassGlacier
-	StorageClassStandardIa         = s3.ObjectStorageClassStandardIa
-	StorageClassOnezoneIa          = s3.ObjectStorageClassOnezoneIa
-	StorageClassIntelligentTiering = s3.ObjectStorageClassIntelligentTiering
-	StorageClassDeepArchive        = s3.ObjectStorageClassDeepArchive
+	StorageClassStandard           = types.ObjectStorageClassStandard
+	StorageClassReducedRedundancy  = types.ObjectStorageClassReducedRedundancy
+	StorageClassGlacier            = types.ObjectStorageClassGlacier
+	StorageClassStandardIa         = types.ObjectStorageClassStandardIa
+	StorageClassOnezoneIa          = types.ObjectStorageClassOnezoneIa
+	StorageClassIntelligentTiering = types.ObjectStorageClassIntelligentTiering
+	StorageClassDeepArchive        = types.ObjectStorageClassDeepArchive
 )
 
 func formatError(err error) error {
@@ -214,17 +173,17 @@ func formatError(err error) error {
 	}
 }
 
-func newS3Service(sess *session.Session, cfgs ...*aws.Config) (srv *s3.S3) {
-	srv = s3.New(sess, cfgs...)
+func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
+	srv = s3.NewFromConfig(*cfgs, func(o *s3.Options) {})
 
 	// S3 will calculate payload's content-sha256 by default, we change this behavior for following reasons:
 	// - To support uploading content without seek support: stdin, bytes.Reader
 	// - To allow user decide when to calculate the hash, especially for big files
-	srv.Handlers.Sign.SwapNamed(v4.BuildNamedHandler(v4.SignRequestHandler.Name, func(s *v4.Signer) {
+	/*srv.Handlers.Sign.SwapNamed(v4.BuildNamedHandler(v4.SignRequestHandler.Name, func(s *v4.Signer) {
 		s.DisableURIPathEscaping = true
 		// With UnsignedPayload set to true, signer will set "X-Amz-Content-Sha256" to "UNSIGNED-PAYLOAD"
 		s.UnsignedPayload = true
-	}))
+	}))*/
 	return
 }
 
@@ -236,7 +195,7 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 	}
 
 	st = &Storage{
-		service: newS3Service(s.sess, aws.NewConfig().WithRegion(opt.Location)),
+		service: newS3Service(s.cfg),
 
 		name:    opt.Name,
 		workDir: "/",
@@ -292,7 +251,7 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 	}
 }
 
-func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
+func (s *Storage) formatFileObject(v *types.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
@@ -300,15 +259,15 @@ func (s *Storage) formatFileObject(v *s3.Object) (o *typ.Object, err error) {
 	// If you want to get the exact object mode, please use `stat`
 	o.Mode |= typ.ModeRead
 
-	o.SetContentLength(aws.Int64Value(v.Size))
-	o.SetLastModified(aws.TimeValue(v.LastModified))
+	o.SetContentLength(*aws.Int64(v.Size))
+	o.SetLastModified(*aws.Time(*v.LastModified))
 
 	if v.ETag != nil {
 		o.SetEtag(*v.ETag)
 	}
 
 	var sm ObjectSystemMetadata
-	if value := aws.StringValue(v.StorageClass); value != "" {
+	if value := string(v.StorageClass); value != *aws.String("") {
 		sm.StorageClass = value
 	}
 	o.SetSystemMetadata(sm)
@@ -322,8 +281,8 @@ func (s *Storage) newObject(done bool) *typ.Object {
 
 // All available server side algorithm are listed here.
 const (
-	ServerSideEncryptionAes256 = s3.ServerSideEncryptionAes256
-	ServerSideEncryptionAwsKms = s3.ServerSideEncryptionAwsKms
+	ServerSideEncryptionAes256 = types.ServerSideEncryptionAes256
+	ServerSideEncryptionAwsKms = types.ServerSideEncryptionAwsKms
 )
 
 func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
@@ -389,20 +348,20 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 	input = &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
-		ContentLength: aws.Int64(size),
+		ContentLength: *aws.Int64(size),
 	}
 
 	if opt.HasContentMd5 {
 		input.ContentMD5 = &opt.ContentMd5
 	}
 	if opt.HasStorageClass {
-		input.StorageClass = &opt.StorageClass
+		input.StorageClass = types.StorageClass(opt.StorageClass)
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
+		input.BucketKeyEnabled = opt.ServerSideEncryptionBucketKeyEnabled
 	}
 	if opt.HasServerSideEncryptionCustomerAlgorithm {
 		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
@@ -418,7 +377,7 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
 	}
 	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
+		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
 	}
 
 	return

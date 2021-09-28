@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
@@ -19,13 +22,13 @@ import (
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
-	upload := &s3.CompletedMultipartUpload{}
+	upload := &types.CompletedMultipartUpload{}
 	for _, v := range parts {
-		upload.Parts = append(upload.Parts, &s3.CompletedPart{
+		upload.Parts = append(upload.Parts, types.CompletedPart{
 			ETag: aws.String(v.ETag),
 			// For users the `PartNumber` is zero-based. But for S3, the effective `PartNumber` is [1, 10000].
 			// Set PartNumber=v.Index+1 here to ensure pass in an effective `PartNumber` for `CompletedPart`.
-			PartNumber: aws.Int64(int64(v.Index + 1)),
+			PartNumber: *aws.Int32(int32(v.Index + 1)),
 		})
 	}
 
@@ -91,16 +94,16 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
-		ContentLength: aws.Int64(0),
+		ContentLength: *aws.Int64(0),
 	}
 	if opt.HasStorageClass {
-		input.StorageClass = &opt.StorageClass
+		input.StorageClass = types.StorageClass(opt.StorageClass)
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
 
-	output, err := s.service.PutObjectWithContext(ctx, input)
+	output, err := s.service.PutObject(ctx, input)
 	if err != nil {
 		return
 	}
@@ -109,26 +112,26 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	o.Mode = ModeDir
 	o.ID = rp
 	o.Path = path
-	o.SetEtag(aws.StringValue(output.ETag))
+	o.SetEtag(*aws.String(*output.ETag))
 
 	var sm ObjectSystemMetadata
-	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+	if v := string(*output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+	if v := string(*output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+	if v := string(*output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+	if v := string(*output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
-	if output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	if &output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -147,12 +150,12 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		Key:    aws.String(rp),
 		// As s3 does not support symlink, we can only use user-defined metadata to simulate it.
 		// ref: https://github.com/beyondstorage/go-service-s3/blob/master/rfcs/178-add-virtual-link-support.md
-		Metadata: map[string]*string{
-			metadataLinkTargetHeader: &rt,
+		Metadata: map[string]string{
+			metadataLinkTargetHeader: rt,
 		},
 	}
 
-	output, err := s.service.PutObjectWithContext(ctx, input)
+	output, err := s.service.PutObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -172,23 +175,23 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 	}
 
 	var sm ObjectSystemMetadata
-	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+	if v := string(*output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+	if v := string(*output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+	if v := string(*output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+	if v := string(*output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
-	if output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	if &output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -203,7 +206,7 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		Key:    aws.String(rp),
 	}
 	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
+		input.BucketKeyEnabled = opt.ServerSideEncryptionBucketKeyEnabled
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
@@ -222,10 +225,10 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
 	}
 	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
+		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
 	}
 
-	output, err := s.service.CreateMultipartUpload(input)
+	output, err := s.service.CreateMultipartUpload(ctx, input)
 	if err != nil {
 		return
 	}
@@ -234,26 +237,26 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.ID = rp
 	o.Path = path
 	o.Mode |= ModePart
-	o.SetMultipartID(aws.StringValue(output.UploadId))
+	o.SetMultipartID(*aws.String(*output.UploadId))
 
 	var sm ObjectSystemMetadata
-	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+	if v := string(*output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := aws.StringValue(output.SSEKMSEncryptionContext); v != "" {
+	if v := string(*output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+	if v := string(*output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+	if v := string(*output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
-	if output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	if &output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
 	}
 
 	o.SetSystemMetadata(sm)
@@ -279,7 +282,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		// References
 		// - [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 		// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
-		_, err = s.service.AbortMultipartUpload(abortInput)
+		_, err = s.service.AbortMultipartUpload(ctx, abortInput)
 		if err != nil {
 			return
 		}
@@ -307,7 +310,7 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	// References
 	// - [GSP-46](https://github.com/beyondstorage/specs/blob/master/rfcs/46-idempotent-delete.md)
 	// - https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
-	_, err = s.service.DeleteObject(input)
+	_, err = s.service.DeleteObject(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -379,7 +382,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 	listInput := &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
 		Delimiter:         &input.delimiter,
-		MaxKeys:           &input.maxKeys,
+		MaxKeys:           int32(input.maxKeys),
 		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
 	}
@@ -387,7 +390,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
 
-	output, err := s.service.ListObjectsV2WithContext(ctx, listInput)
+	output, err := s.service.ListObjectsV2(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -402,7 +405,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 	}
 
 	for _, v := range output.Contents {
-		o, err := s.formatFileObject(v)
+		o, err := s.formatFileObject(&v)
 		if err != nil {
 			return err
 		}
@@ -410,7 +413,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 		page.Data = append(page.Data, o)
 	}
 
-	if !aws.BoolValue(output.IsTruncated) {
+	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
 
@@ -423,7 +426,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 
 	listInput := &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
-		MaxKeys:           &input.maxKeys,
+		MaxKeys:           int32(input.maxKeys),
 		ContinuationToken: input.getServiceContinuationToken(),
 		Prefix:            &input.prefix,
 	}
@@ -431,13 +434,13 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
 
-	output, err := s.service.ListObjectsV2WithContext(ctx, listInput)
+	output, err := s.service.ListObjectsV2(ctx, listInput)
 	if err != nil {
 		return err
 	}
 
 	for _, v := range output.Contents {
-		o, err := s.formatFileObject(v)
+		o, err := s.formatFileObject(&v)
 		if err != nil {
 			return err
 		}
@@ -445,11 +448,11 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 		page.Data = append(page.Data, o)
 	}
 
-	if !aws.BoolValue(output.IsTruncated) {
+	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
 
-	input.continuationToken = aws.StringValue(output.NextContinuationToken)
+	input.continuationToken = *aws.String(*output.NextContinuationToken)
 	return nil
 }
 
@@ -459,7 +462,7 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 	listInput := &s3.ListMultipartUploadsInput{
 		Bucket:         &s.name,
 		KeyMarker:      &input.keyMarker,
-		MaxUploads:     &input.maxKeys,
+		MaxUploads:     int32(input.maxKeys),
 		Prefix:         &input.prefix,
 		UploadIdMarker: &input.uploadIdMarker,
 	}
@@ -467,7 +470,7 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
 
-	output, err := s.service.ListMultipartUploadsWithContext(ctx, listInput)
+	output, err := s.service.ListMultipartUploads(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -482,12 +485,12 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 		page.Data = append(page.Data, o)
 	}
 
-	if !aws.BoolValue(output.IsTruncated) {
+	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
 
-	input.keyMarker = aws.StringValue(output.KeyMarker)
-	input.uploadIdMarker = aws.StringValue(output.UploadIdMarker)
+	input.keyMarker = *aws.String(*output.KeyMarker)
+	input.uploadIdMarker = *aws.String(*output.UploadIdMarker)
 	return nil
 }
 
@@ -497,7 +500,7 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	listInput := &s3.ListPartsInput{
 		Bucket:           &s.name,
 		Key:              &input.key,
-		MaxParts:         &input.maxParts,
+		MaxParts:         int32(input.maxParts),
 		PartNumberMarker: &input.partNumberMarker,
 		UploadId:         &input.uploadId,
 	}
@@ -505,7 +508,7 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
 
-	output, err := s.service.ListPartsWithContext(ctx, listInput)
+	output, err := s.service.ListParts(ctx, listInput)
 	if err != nil {
 		return err
 	}
@@ -514,19 +517,19 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 		p := &Part{
 			// The returned `PartNumber` is [1, 10000].
 			// Set Index=*v.PartNumber-1 here to make the `PartNumber` zero-based for user.
-			Index: int(*v.PartNumber) - 1,
-			Size:  *v.Size,
-			ETag:  aws.StringValue(v.ETag),
+			Index: int(v.PartNumber) - 1,
+			Size:  v.Size,
+			ETag:  *aws.String(*v.ETag),
 		}
 
 		page.Data = append(page.Data, p)
 	}
 
-	if !aws.BoolValue(output.IsTruncated) {
+	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
 
-	input.partNumberMarker = aws.Int64Value(output.NextPartNumberMarker)
+	input.partNumberMarker = *output.NextPartNumberMarker
 	return nil
 }
 
@@ -541,7 +544,8 @@ func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire tim
 		return
 	}
 
-	getReq, _ := s.service.GetObjectRequest(input)
+	presignClient := s3.NewPresignClient(s.service)
+	getReq, _ := presignClient.PresignGetObject(ctx, input)
 	url, headers, err := getReq.PresignRequest(expire)
 	if err != nil {
 		return
@@ -567,7 +571,9 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 		return nil, err
 	}
 
-	putReq, _ := s.service.PutObjectRequest(input)
+	presignClient := s3.NewPresignClient(s.service)
+
+	putReq, _ := presignClient.PutObjectRequest(cfg, input)
 	url, headers, err := putReq.PresignRequest(expire)
 	if err != nil {
 		return nil, err
@@ -589,7 +595,7 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 		return
 	}
 
-	output, err := s.service.GetObjectWithContext(ctx, input)
+	output, err := s.service.GetObject(ctx, input)
 	if err != nil {
 		return
 	}
@@ -616,7 +622,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			listInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 		}
 
-		_, err = s.service.ListPartsWithContext(ctx, listInput)
+		_, err = s.service.ListParts(ctx, listInput)
 		if err != nil {
 			return nil, err
 		}
@@ -652,7 +658,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		}
 	}
 
-	output, err := s.service.HeadObject(input)
+	output, err := s.service.HeadObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +678,7 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 				o.Mode |= ModeLink
 				// s3 does not have an absolute path, so when we call `getAbsPath`, it will remove the prefix `/`.
 				// To ensure that the path matches the one the user gets, we should re-add `/` here.
-				o.SetLinkTarget("/" + *target)
+				o.SetLinkTarget("/" + target)
 			}
 		}
 	}
@@ -685,8 +691,8 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		}
 	}
 
-	o.SetContentLength(aws.Int64Value(output.ContentLength))
-	o.SetLastModified(aws.TimeValue(output.LastModified))
+	o.SetContentLength(*aws.Int64(output.ContentLength))
+	o.SetLastModified(*aws.Time(*output.LastModified))
 
 	if output.ContentType != nil {
 		o.SetContentType(*output.ContentType)
@@ -696,23 +702,23 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	}
 
 	var sm ObjectSystemMetadata
-	if v := aws.StringValue(output.StorageClass); v != "" {
+	if v := string(output.StorageClass); v != "" {
 		sm.StorageClass = v
 	}
-	if v := aws.StringValue(output.ServerSideEncryption); v != "" {
+	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := aws.StringValue(output.SSEKMSKeyId); v != "" {
+	if v := string(*output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := aws.StringValue(output.SSECustomerAlgorithm); v != "" {
+	if v := string(*output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := aws.StringValue(output.SSECustomerKeyMD5); v != "" {
+	if v := string(*output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
-	if output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = aws.BoolValue(output.BucketKeyEnabled)
+	if &output.BucketKeyEnabled != nil {
+		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -744,8 +750,8 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		return
 	}
 
-	input.Body = aws.ReadSeekCloser(r)
-	_, err = s.service.PutObjectWithContext(ctx, input)
+	input.Body = manager.ReadSeekCloser(r)
+	_, err = s.service.PutObject(ctx, input)
 	if err != nil {
 		return
 	}
@@ -771,10 +777,10 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
 		// Set PartNumber=index+1 here to ensure pass in an effective `PartNumber` for `UploadPart`.
 		// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html
-		PartNumber:    aws.Int64(int64(index + 1)),
+		PartNumber:    *aws.Int32(int32(index + 1)),
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
-		ContentLength: &size,
+		ContentLength: size,
 		Body:          iowrap.SizedReadSeekCloser(r, size),
 	}
 	if opt.HasExceptedBucketOwner {
@@ -787,7 +793,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		}
 	}
 
-	output, err := s.service.UploadPartWithContext(ctx, input)
+	output, err := s.service.UploadPart(ctx, input)
 	if err != nil {
 		return
 	}
@@ -795,7 +801,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 	part = &Part{
 		Index: index,
 		Size:  size,
-		ETag:  aws.StringValue(output.ETag),
+		ETag:  *aws.String(*output.ETag),
 	}
 	return size, part, nil
 }
