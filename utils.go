@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -105,8 +106,6 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	case credential.ProtocolHmac:
 		ak, sk := cp.Hmac()
 		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(ak, sk, ""))
-	case credential.ProtocolEnv:
-		cfg.Credentials = credentials.NewCredentials()
 	default:
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
@@ -178,11 +177,11 @@ func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
 	// S3 will calculate payload's content-sha256 by default, we change this behavior for following reasons:
 	// - To support uploading content without seek support: stdin, bytes.Reader
 	// - To allow user decide when to calculate the hash, especially for big files
-	/*srv.Handlers.Sign.SwapNamed(v4.BuildNamedHandler(v4.SignRequestHandler.Name, func(s *v4.Signer) {
+	srv.Handlers.Sign.SwapNamed(v4.BuildNamedHandler(v4.SignRequestHandler.Name, func(s *v4.Signer) {
 		s.DisableURIPathEscaping = true
 		// With UnsignedPayload set to true, signer will set "X-Amz-Content-Sha256" to "UNSIGNED-PAYLOAD"
 		s.UnsignedPayload = true
-	}))*/
+	}))
 	return
 }
 

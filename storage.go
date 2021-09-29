@@ -544,18 +544,17 @@ func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire tim
 	}
 
 	presignClient := s3.NewPresignClient(s.service)
-	getReq, _ := presignClient.PresignGetObject(ctx, input)
-	url, headers, err := getReq.PresignRequest(expire)
+	getReq, err := presignClient.PresignGetObject(ctx, input)
 	if err != nil {
 		return
 	}
 
-	req, err = http.NewRequest("GET", url, nil)
+	req, err = http.NewRequest("GET", getReq.URL, nil)
 	if err != nil {
 		return
 	}
 
-	req.Header = headers
+	req.Header = getReq.SignedHeader
 	return
 }
 
@@ -571,18 +570,17 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 	}
 
 	presignClient := s3.NewPresignClient(s.service)
-	putReq, _ := presignClient.PresignPutObject(ctx, input)
-	url, headers, err := putReq.PresignRequest(expire)
+	putReq, err := presignClient.PresignPutObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err = http.NewRequest("PUT", url, nil)
+	req, err = http.NewRequest("PUT", putReq.URL, nil)
 	if err != nil {
 		return
 	}
 
-	req.Header = headers
+	req.Header = putReq.SignedHeader
 	req.ContentLength = size
 	return
 }
