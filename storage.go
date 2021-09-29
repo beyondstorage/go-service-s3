@@ -5,19 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
+	"io"
+	"net/http"
+	"time"
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
@@ -30,7 +28,6 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 			PartNumber: *aws.Int32(int32(v.Index + 1)),
 		})
 	}
-
 	input := &s3.CompleteMultipartUploadInput{
 		Bucket:          aws.String(s.name),
 		Key:             aws.String(o.ID),
@@ -40,12 +37,10 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
-
 	_, err = s.service.CompleteMultipartUpload(ctx, input)
 	if err != nil {
 		return
 	}
-
 	o.Mode.Del(ModePart)
 	o.Mode.Add(ModeRead)
 	return
@@ -53,7 +48,6 @@ func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Par
 
 func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 	rp := s.getAbsPath(path)
-
 	// Handle create multipart object separately.
 	if opt.HasMultipartID {
 		o = s.newObject(true)
@@ -64,7 +58,6 @@ func (s *Storage) create(path string, opt pairStorageCreate) (o *Object) {
 			if !s.features.VirtualDir {
 				return
 			}
-
 			rp += "/"
 			o = s.newObject(true)
 			o.Mode = ModeDir
@@ -83,13 +76,10 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 		err = NewOperationNotImplementedError("create_dir")
 		return
 	}
-
 	rp := s.getAbsPath(path)
-
 	// Add `/` at the end of `path` to simulate a directory.
 	//ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html
 	rp += "/"
-
 	input := &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
@@ -101,18 +91,15 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
-
 	output, err := s.service.PutObject(ctx, input)
 	if err != nil {
 		return
 	}
-
 	o = s.newObject(true)
 	o.Mode = ModeDir
 	o.ID = rp
 	o.Path = path
 	o.SetEtag(aws.ToString(output.ETag))
-
 	var sm ObjectSystemMetadata
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
@@ -133,7 +120,6 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
-
 	return o, nil
 }
 
@@ -143,7 +129,6 @@ const metadataLinkTargetHeader = "x-amz-meta-bs-link-target"
 func (s *Storage) createLink(ctx context.Context, path string, target string, opt pairStorageCreateLink) (o *Object, err error) {
 	rt := s.getAbsPath(target)
 	rp := s.getAbsPath(path)
-
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -153,16 +138,13 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 			metadataLinkTargetHeader: rt,
 		},
 	}
-
 	output, err := s.service.PutObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-
 	if !s.features.VirtualLink {
 		// The virtual link is not enabled, so we set the object mode to `ModeRead`.
 		o.Mode |= ModeRead
@@ -172,7 +154,6 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		o.SetLinkTarget("/" + rt)
 		o.Mode |= ModeLink
 	}
-
 	var sm ObjectSystemMetadata
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
@@ -193,13 +174,11 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
-
 	return
 }
 
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
-
 	input := &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -226,18 +205,15 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	if opt.HasServerSideEncryption {
 		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
 	}
-
 	output, err := s.service.CreateMultipartUpload(ctx, input)
 	if err != nil {
 		return
 	}
-
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.ToString(output.UploadId))
-
 	var sm ObjectSystemMetadata
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
@@ -257,15 +233,12 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	if &output.BucketKeyEnabled != nil {
 		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
-
 	o.SetSystemMetadata(sm)
-
 	return o, nil
 }
 
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
 	rp := s.getAbsPath(path)
-
 	if opt.HasMultipartID {
 		abortInput := &s3.AbortMultipartUploadInput{
 			Bucket:   aws.String(s.name),
@@ -275,7 +248,6 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		if opt.HasExceptedBucketOwner {
 			abortInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 		}
-
 		// S3 AbortMultipartUpload is idempotent, so we don't need to check NoSuchUpload error.
 		//
 		// References
@@ -286,16 +258,13 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 			return
 		}
 	}
-
 	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
 		if !s.features.VirtualDir {
 			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
 			return
 		}
-
 		rp += "/"
 	}
-
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -303,7 +272,6 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
-
 	// S3 DeleteObject is idempotent, so we don't need to check NoSuchKey error.
 	//
 	// References
@@ -321,19 +289,15 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 		maxKeys: 200,
 		prefix:  s.getAbsPath(path),
 	}
-
 	if opt.HasExceptedBucketOwner {
 		input.expectedBucketOwner = opt.ExceptedBucketOwner
 	}
-
 	if !opt.HasListMode {
 		// Support `ListModePrefix` as the default `ListMode`.
 		// ref: [GSP-46](https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/654-unify-list-behavior.md)
 		opt.ListMode = ListModePrefix
 	}
-
 	var nextFn NextObjectFunc
-
 	switch {
 	case opt.ListMode.IsPart():
 		nextFn = s.nextPartObjectPageByPrefix
@@ -345,7 +309,6 @@ func (s *Storage) list(ctx context.Context, path string, opt pairStorageList) (o
 	default:
 		return nil, services.ListModeInvalidError{Actual: opt.ListMode}
 	}
-
 	return NewObjectIterator(ctx, nextFn, input), nil
 }
 
@@ -358,7 +321,6 @@ func (s *Storage) listMultipart(ctx context.Context, o *Object, opt pairStorageL
 	if opt.HasExceptedBucketOwner {
 		input.expectedBucketOwner = opt.ExceptedBucketOwner
 	}
-
 	return NewPartIterator(ctx, s.nextPartPage, input), nil
 }
 
@@ -377,7 +339,6 @@ func (s *Storage) metadata(opt pairStorageMetadata) (meta *StorageMeta) {
 
 func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
-
 	listInput := &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
 		Delimiter:         &input.delimiter,
@@ -388,41 +349,33 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 	if input.expectedBucketOwner != "" {
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
-
 	output, err := s.service.ListObjectsV2(ctx, listInput)
 	if err != nil {
 		return err
 	}
-
 	for _, v := range output.CommonPrefixes {
 		o := s.newObject(true)
 		o.ID = *v.Prefix
 		o.Path = s.getRelPath(*v.Prefix)
 		o.Mode |= ModeDir
-
 		page.Data = append(page.Data, o)
 	}
-
 	for _, v := range output.Contents {
 		o, err := s.formatFileObject(&v)
 		if err != nil {
 			return err
 		}
-
 		page.Data = append(page.Data, o)
 	}
-
 	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
-
 	input.continuationToken = *output.NextContinuationToken
 	return nil
 }
 
 func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
-
 	listInput := &s3.ListObjectsV2Input{
 		Bucket:            &s.name,
 		MaxKeys:           int32(input.maxKeys),
@@ -432,32 +385,26 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 	if input.expectedBucketOwner != "" {
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
-
 	output, err := s.service.ListObjectsV2(ctx, listInput)
 	if err != nil {
 		return err
 	}
-
 	for _, v := range output.Contents {
 		o, err := s.formatFileObject(&v)
 		if err != nil {
 			return err
 		}
-
 		page.Data = append(page.Data, o)
 	}
-
 	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
-
 	input.continuationToken = *aws.String(*output.NextContinuationToken)
 	return nil
 }
 
 func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPage) error {
 	input := page.Status.(*objectPageStatus)
-
 	listInput := &s3.ListMultipartUploadsInput{
 		Bucket:         &s.name,
 		KeyMarker:      &input.keyMarker,
@@ -468,26 +415,21 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 	if input.expectedBucketOwner != "" {
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
-
 	output, err := s.service.ListMultipartUploads(ctx, listInput)
 	if err != nil {
 		return err
 	}
-
 	for _, v := range output.Uploads {
 		o := s.newObject(true)
 		o.ID = *v.Key
 		o.Path = s.getRelPath(*v.Key)
 		o.Mode |= ModePart
 		o.SetMultipartID(*v.UploadId)
-
 		page.Data = append(page.Data, o)
 	}
-
 	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
-
 	input.keyMarker = aws.ToString(output.KeyMarker)
 	input.uploadIdMarker = aws.ToString(output.UploadIdMarker)
 	return nil
@@ -495,7 +437,6 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 
 func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	input := page.Status.(*partPageStatus)
-
 	listInput := &s3.ListPartsInput{
 		Bucket:           &s.name,
 		Key:              &input.key,
@@ -506,12 +447,10 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	if input.expectedBucketOwner != "" {
 		listInput.ExpectedBucketOwner = &input.expectedBucketOwner
 	}
-
 	output, err := s.service.ListParts(ctx, listInput)
 	if err != nil {
 		return err
 	}
-
 	for _, v := range output.Parts {
 		p := &Part{
 			// The returned `PartNumber` is [1, 10000].
@@ -520,14 +459,11 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 			Size:  v.Size,
 			ETag:  aws.ToString(v.ETag),
 		}
-
 		page.Data = append(page.Data, p)
 	}
-
 	if !(*aws.Bool(output.IsTruncated)) {
 		return IterateDone
 	}
-
 	input.partNumberMarker = *output.NextPartNumberMarker
 	return nil
 }
@@ -537,23 +473,19 @@ func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire tim
 	if err != nil {
 		return
 	}
-
 	input, err := s.formatGetObjectInput(path, pairs)
 	if err != nil {
 		return
 	}
-
 	presignClient := s3.NewPresignClient(s.service)
 	getReq, err := presignClient.PresignGetObject(ctx, input)
 	if err != nil {
 		return
 	}
-
 	req, err = http.NewRequest("GET", getReq.URL, nil)
 	if err != nil {
 		return
 	}
-
 	req.Header = getReq.SignedHeader
 	return
 }
@@ -563,23 +495,19 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 	if err != nil {
 		return nil, err
 	}
-
 	input, err := s.formatPutObjectInput(path, size, pairs)
 	if err != nil {
 		return nil, err
 	}
-
 	presignClient := s3.NewPresignClient(s.service)
 	putReq, err := presignClient.PresignPutObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-
 	req, err = http.NewRequest("PUT", putReq.URL, nil)
 	if err != nil {
 		return
 	}
-
 	req.Header = putReq.SignedHeader
 	req.ContentLength = size
 	return
@@ -590,24 +518,20 @@ func (s *Storage) read(ctx context.Context, path string, w io.Writer, opt pairSt
 	if err != nil {
 		return
 	}
-
 	output, err := s.service.GetObject(ctx, input)
 	if err != nil {
 		return
 	}
 	defer output.Body.Close()
-
 	rc := output.Body
 	if opt.HasIoCallback {
 		rc = iowrap.CallbackReadCloser(rc, opt.IoCallback)
 	}
-
 	return io.Copy(w, rc)
 }
 
 func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o *Object, err error) {
 	rp := s.getAbsPath(path)
-
 	if opt.HasMultipartID {
 		listInput := &s3.ListPartsInput{
 			Bucket:   aws.String(s.name),
@@ -617,12 +541,10 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		if opt.HasExceptedBucketOwner {
 			listInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 		}
-
 		_, err = s.service.ListParts(ctx, listInput)
 		if err != nil {
 			return nil, err
 		}
-
 		o = s.newObject(true)
 		o.ID = rp
 		o.Path = path
@@ -630,16 +552,13 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		o.SetMultipartID(opt.MultipartID)
 		return o, nil
 	}
-
 	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
 		if !s.features.VirtualDir {
 			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
 			return
 		}
-
 		rp += "/"
 	}
-
 	input := &s3.HeadObjectInput{
 		Bucket: aws.String(s.name),
 		Key:    aws.String(rp),
@@ -653,16 +572,13 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			return
 		}
 	}
-
 	output, err := s.service.HeadObject(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-
 	o = s.newObject(true)
 	o.ID = rp
 	o.Path = path
-
 	if output.Metadata != nil {
 		metadata := output.Metadata
 		if target, ok := metadata[metadataLinkTargetHeader]; ok {
@@ -678,7 +594,6 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			}
 		}
 	}
-
 	if o.Mode&ModeLink == 0 && o.Mode&ModeRead == 0 {
 		if opt.HasObjectMode && opt.ObjectMode.IsDir() {
 			o.Mode |= ModeDir
@@ -686,17 +601,14 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 			o.Mode |= ModeRead
 		}
 	}
-
 	o.SetContentLength(*aws.Int64(output.ContentLength))
 	o.SetLastModified(*aws.Time(*output.LastModified))
-
 	if output.ContentType != nil {
 		o.SetContentType(*output.ContentType)
 	}
 	if output.ETag != nil {
 		o.SetEtag(*output.ETag)
 	}
-
 	var sm ObjectSystemMetadata
 	if v := string(output.StorageClass); v != "" {
 		sm.StorageClass = v
@@ -717,7 +629,6 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
-
 	return o, nil
 }
 
@@ -726,7 +637,6 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 		err = fmt.Errorf("size limit exceeded: %w", services.ErrRestrictionDissatisfied)
 		return
 	}
-
 	// According to GSP-751, we should allow the user to pass in a nil io.Reader.
 	// ref: https://github.com/beyondstorage/go-storage/blob/master/docs/rfcs/751-write-empty-file-behavior.md
 	if (r == nil && size == 0) || (r != nil && size == 0) {
@@ -736,16 +646,13 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	} else {
 		r = io.LimitReader(r, size)
 	}
-
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
-
 	input, err := s.formatPutObjectInput(path, size, opt)
 	if err != nil {
 		return
 	}
-
 	input.Body = manager.ReadSeekCloser(r)
 	_, err = s.service.PutObject(ctx, input)
 	if err != nil {
@@ -763,11 +670,9 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		err = fmt.Errorf("multipart number limit exceeded: %w", services.ErrRestrictionDissatisfied)
 		return
 	}
-
 	if opt.HasIoCallback {
 		r = iowrap.CallbackReader(r, opt.IoCallback)
 	}
-
 	input := &s3.UploadPartInput{
 		Bucket: &s.name,
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
@@ -788,12 +693,10 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 			return
 		}
 	}
-
 	output, err := s.service.UploadPart(ctx, input)
 	if err != nil {
 		return
 	}
-
 	part = &Part{
 		Index: index,
 		Size:  size,

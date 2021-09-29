@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -174,14 +173,6 @@ func formatError(err error) error {
 func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
 	srv = s3.NewFromConfig(*cfgs, func(o *s3.Options) {})
 
-	// S3 will calculate payload's content-sha256 by default, we change this behavior for following reasons:
-	// - To support uploading content without seek support: stdin, bytes.Reader
-	// - To allow user decide when to calculate the hash, especially for big files
-	srv.Handlers.Sign.SwapNamed(v4.BuildNamedHandler(v4.SignRequestHandler.Name, func(s *v4.Signer) {
-		s.DisableURIPathEscaping = true
-		// With UnsignedPayload set to true, signer will set "X-Amz-Content-Sha256" to "UNSIGNED-PAYLOAD"
-		s.UnsignedPayload = true
-	}))
 	return
 }
 

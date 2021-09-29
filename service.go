@@ -2,30 +2,25 @@ package s3
 
 import (
 	"context"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	. "github.com/beyondstorage/go-storage/v4/types"
 )
 
 func (s *Service) create(ctx context.Context, name string, opt pairServiceCreate) (store Storager, err error) {
 	pairs := append(opt.pairs, ps.WithName(name))
-
 	st, err := s.newStorage(pairs...)
 	if err != nil {
 		return nil, err
 	}
-
 	input := &s3.CreateBucketInput{
 		Bucket: aws.String(name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
 			LocationConstraint: types.BucketLocationConstraint(opt.Location),
 		},
 	}
-
 	_, err = s.service.CreateBucket(ctx, input)
 	if err != nil {
 		return nil, err
@@ -40,7 +35,6 @@ func (s *Service) delete(ctx context.Context, name string, opt pairServiceDelete
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
 	}
-
 	_, err = s.service.DeleteBucket(ctx, input)
 	if err != nil {
 		return err
@@ -50,7 +44,6 @@ func (s *Service) delete(ctx context.Context, name string, opt pairServiceDelete
 
 func (s *Service) get(ctx context.Context, name string, opt pairServiceGet) (store Storager, err error) {
 	pairs := append(opt.pairs, ps.WithName(name))
-
 	st, err := s.newStorage(pairs...)
 	if err != nil {
 		return nil, err
@@ -60,7 +53,6 @@ func (s *Service) get(ctx context.Context, name string, opt pairServiceGet) (sto
 
 func (s *Service) list(ctx context.Context, opt pairServiceList) (it *StoragerIterator, err error) {
 	input := &storagePageStatus{}
-
 	return NewStoragerIterator(ctx, s.nextStoragePage, input), nil
 }
 
@@ -69,7 +61,6 @@ func (s *Service) nextStoragePage(ctx context.Context, page *StoragerPage) error
 	if err != nil {
 		return err
 	}
-
 	for _, v := range output.Buckets {
 		store, err := s.newStorage(ps.WithName(*v.Name))
 		if err != nil {
@@ -77,6 +68,5 @@ func (s *Service) nextStoragePage(ctx context.Context, page *StoragerPage) error
 		}
 		page.Data = append(page.Data, store)
 	}
-
 	return IterateDone
 }
