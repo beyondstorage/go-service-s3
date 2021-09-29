@@ -111,26 +111,26 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	o.Mode = ModeDir
 	o.ID = rp
 	o.Path = path
-	o.SetEtag(*aws.String(*output.ETag))
+	o.SetEtag(aws.ToString(output.ETag))
 
 	var sm ObjectSystemMetadata
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := string(*output.SSEKMSKeyId); v != "" {
+	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := string(*output.SSEKMSEncryptionContext); v != "" {
+	if v := aws.ToString(output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := string(*output.SSECustomerAlgorithm); v != "" {
+	if v := aws.ToString(output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := string(*output.SSECustomerKeyMD5); v != "" {
+	if v := aws.ToString(output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if &output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
+		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -177,20 +177,20 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := string(*output.SSEKMSKeyId); v != "" {
+	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := string(*output.SSEKMSEncryptionContext); v != "" {
+	if v := aws.ToString(output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := string(*output.SSECustomerAlgorithm); v != "" {
+	if v := aws.ToString(output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := string(*output.SSECustomerKeyMD5); v != "" {
+	if v := aws.ToString(output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if &output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
+		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -242,20 +242,20 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := string(*output.SSEKMSKeyId); v != "" {
+	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := string(*output.SSEKMSEncryptionContext); v != "" {
+	if v := aws.ToString(output.SSEKMSEncryptionContext); v != "" {
 		sm.ServerSideEncryptionContext = v
 	}
-	if v := string(*output.SSECustomerAlgorithm); v != "" {
+	if v := aws.ToString(output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := string(*output.SSECustomerKeyMD5); v != "" {
+	if v := aws.ToString(output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if &output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
+		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 
 	o.SetSystemMetadata(sm)
@@ -488,7 +488,7 @@ func (s *Storage) nextPartObjectPageByPrefix(ctx context.Context, page *ObjectPa
 		return IterateDone
 	}
 
-	input.keyMarker = *aws.String(*output.KeyMarker)
+	input.keyMarker = aws.ToString(output.KeyMarker)
 	input.uploadIdMarker = aws.ToString(output.UploadIdMarker)
 	return nil
 }
@@ -518,7 +518,7 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 			// Set Index=*v.PartNumber-1 here to make the `PartNumber` zero-based for user.
 			Index: int(v.PartNumber) - 1,
 			Size:  v.Size,
-			ETag:  *aws.String(*v.ETag),
+			ETag:  aws.ToString(v.ETag),
 		}
 
 		page.Data = append(page.Data, p)
@@ -706,17 +706,17 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	if v := string(output.ServerSideEncryption); v != "" {
 		sm.ServerSideEncryption = v
 	}
-	if v := string(*output.SSEKMSKeyId); v != "" {
+	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
-	if v := string(*output.SSECustomerAlgorithm); v != "" {
+	if v := aws.ToString(output.SSECustomerAlgorithm); v != "" {
 		sm.ServerSideEncryptionCustomerAlgorithm = v
 	}
-	if v := string(*output.SSECustomerKeyMD5); v != "" {
+	if v := aws.ToString(output.SSECustomerKeyMD5); v != "" {
 		sm.ServerSideEncryptionCustomerKeyMd5 = v
 	}
 	if &output.BucketKeyEnabled != nil {
-		sm.ServerSideEncryptionBucketKeyEnabled = *aws.Bool(output.BucketKeyEnabled)
+		sm.ServerSideEncryptionBucketKeyEnabled = bool(output.BucketKeyEnabled)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -775,7 +775,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
 		// Set PartNumber=index+1 here to ensure pass in an effective `PartNumber` for `UploadPart`.
 		// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html
-		PartNumber:    *aws.Int32(int32(index + 1)),
+		PartNumber:    (int32(index + 1)),
 		Key:           aws.String(o.ID),
 		UploadId:      aws.String(o.MustGetMultipartID()),
 		ContentLength: size,
@@ -799,7 +799,7 @@ func (s *Storage) writeMultipart(ctx context.Context, o *Object, r io.Reader, si
 	part = &Part{
 		Index: index,
 		Size:  size,
-		ETag:  *aws.String(*output.ETag),
+		ETag:  aws.ToString(output.ETag),
 	}
 	return size, part, nil
 }
