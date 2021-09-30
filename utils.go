@@ -178,7 +178,8 @@ func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
 		options.APIOptions = append(options.APIOptions,
 			func(stack *middleware.Stack) error {
 				v4.RemoveComputePayloadSHA256Middleware(stack)
-				return v4.AddUnsignedPayloadMiddleware(stack)
+				v4.AddUnsignedPayloadMiddleware(stack)
+				return v4.AddContentSHA256HeaderMiddleware(stack)
 			})
 	})
 
