@@ -3,13 +3,14 @@ package s3
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil"
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
@@ -19,26 +20,7 @@ import (
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
-	upload := &s3.CompletedMultipartUpload{}
-	for _, v := range parts {
-		upload.Parts = append(upload.Parts, &s3.CompletedPart{
-			ETag: aws.String(v.ETag),
-			// For users the `PartNumber` is zero-based. But for S3, the effective `PartNumber` is [1, 10000].
-			// Set PartNumber=v.Index+1 here to ensure pass in an effective `PartNumber` for `CompletedPart`.
-			PartNumber: aws.Int64(int64(v.Index + 1)),
-		})
-	}
-
-	input := &s3.CompleteMultipartUploadInput{
-		Bucket:          aws.String(s.name),
-		Key:             aws.String(o.ID),
-		MultipartUpload: upload,
-		UploadId:        aws.String(o.MustGetMultipartID()),
-	}
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-
+	input := s.formatCompleteMultipartUploadInput(o, parts, opt)
 	_, err = s.service.CompleteMultipartUploadWithContext(ctx, input)
 	if err != nil {
 		return
@@ -198,31 +180,9 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStorageCreateMultipart) (o *Object, err error) {
 	rp := s.getAbsPath(path)
 
-	input := &s3.CreateMultipartUploadInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(rp),
-	}
-	if opt.HasServerSideEncryptionBucketKeyEnabled {
-		input.BucketKeyEnabled = &opt.ServerSideEncryptionBucketKeyEnabled
-	}
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-	}
-	if opt.HasServerSideEncryptionCustomerAlgorithm {
-		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
-		if err != nil {
-			return
-		}
-	}
-	if opt.HasServerSideEncryptionAwsKmsKeyID {
-		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
-	}
-	if opt.HasServerSideEncryptionContext {
-		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
-		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
-	}
-	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = &opt.ServerSideEncryption
+	input, err := s.formatCreateMultipartUploadInput(path, opt)
+	if err != nil {
+		return nil, err
 	}
 
 	output, err := s.service.CreateMultipartUpload(input)
@@ -262,17 +222,8 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 }
 
 func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete) (err error) {
-	rp := s.getAbsPath(path)
-
 	if opt.HasMultipartID {
-		abortInput := &s3.AbortMultipartUploadInput{
-			Bucket:   aws.String(s.name),
-			Key:      aws.String(rp),
-			UploadId: aws.String(opt.MultipartID),
-		}
-		if opt.HasExceptedBucketOwner {
-			abortInput.ExpectedBucketOwner = &opt.ExceptedBucketOwner
-		}
+		abortInput := s.formatAbortMultipartUploadInput(path, opt)
 
 		// S3 AbortMultipartUpload is idempotent, so we don't need to check NoSuchUpload error.
 		//
@@ -285,21 +236,9 @@ func (s *Storage) delete(ctx context.Context, path string, opt pairStorageDelete
 		}
 	}
 
-	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
-		if !s.features.VirtualDir {
-			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
-			return
-		}
-
-		rp += "/"
-	}
-
-	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(s.name),
-		Key:    aws.String(rp),
-	}
-	if opt.HasExceptedBucketOwner {
-		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	input, err := s.formatDeleteObjectInput(path, opt)
+	if err != nil {
+		return err
 	}
 
 	// S3 DeleteObject is idempotent, so we don't need to check NoSuchKey error.
@@ -530,6 +469,141 @@ func (s *Storage) nextPartPage(ctx context.Context, page *PartPage) error {
 	return nil
 }
 
+func (s *Storage) querySignHTTPCompleteMultipart(ctx context.Context, o *Object, parts []*Part, expire time.Duration, opt pairStorageQuerySignHTTPCompleteMultipart) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageCompleteMultipart(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	input := s.formatCompleteMultipartUploadInput(o, parts, pairs)
+
+	completeReq, _ := s.service.CompleteMultipartUploadRequest(input)
+	url, headers, err := completeReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	err = xmlutil.BuildXML(completeReq.Params, xml.NewEncoder(&buf))
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("POST", url, &buf)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = headers
+	return
+}
+
+func (s *Storage) querySignHTTPCreateMultipart(ctx context.Context, path string, expire time.Duration, opt pairStorageQuerySignHTTPCreateMultipart) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageCreateMultipart(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := s.formatCreateMultipartUploadInput(path, pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	multipartReq, _ := s.service.CreateMultipartUploadRequest(input)
+	url, headers, err := multipartReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = headers
+	return
+}
+
+func (s *Storage) querySignHTTPDelete(ctx context.Context, path string, expire time.Duration, opt pairStorageQuerySignHTTPDelete) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageDelete(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	if pairs.HasMultipartID {
+		abortInput := s.formatAbortMultipartUploadInput(path, pairs)
+
+		abortReq, _ := s.service.AbortMultipartUploadRequest(abortInput)
+		url, headers, err := abortReq.PresignRequest(expire)
+		if err != nil {
+			return nil, err
+		}
+
+		req, err = http.NewRequest("DELETE", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header = headers
+		return req, nil
+	}
+
+	input, err := s.formatDeleteObjectInput(path, pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	deleteReq, _ := s.service.DeleteObjectRequest(input)
+	url, headers, err := deleteReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = headers
+	return
+}
+
+func (s *Storage) querySignHTTPListMultipart(ctx context.Context, o *Object, expire time.Duration, opt pairStorageQuerySignHTTPListMultipart) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageListMultipart(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	status := &partPageStatus{
+		maxParts: 200,
+	}
+	if pairs.HasExceptedBucketOwner {
+		status.expectedBucketOwner = pairs.ExceptedBucketOwner
+	}
+
+	input := &s3.ListPartsInput{
+		Bucket:           aws.String(s.name),
+		Key:              aws.String(o.ID),
+		MaxParts:         &status.maxParts,
+		PartNumberMarker: &status.partNumberMarker,
+		UploadId:         aws.String(o.MustGetMultipartID()),
+	}
+
+	listPartsReq, _ := s.service.ListPartsRequest(input)
+	url, headers, err := listPartsReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header = headers
+	return
+}
+
 func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire time.Duration, opt pairStorageQuerySignHTTPRead) (req *http.Request, err error) {
 	pairs, err := s.parsePairStorageRead(opt.pairs)
 	if err != nil {
@@ -576,6 +650,33 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 	req, err = http.NewRequest("PUT", url, nil)
 	if err != nil {
 		return
+	}
+
+	req.Header = headers
+	req.ContentLength = size
+	return
+}
+
+func (s *Storage) querySignHTTPWriteMultipart(ctx context.Context, o *Object, size int64, index int, expire time.Duration, opt pairStorageQuerySignHTTPWriteMultipart) (req *http.Request, err error) {
+	pairs, err := s.parsePairStorageWriteMultipart(opt.pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := s.formatUploadPartInput(o, size, index, pairs)
+	if err != nil {
+		return nil, err
+	}
+
+	partReq, _ := s.service.UploadPartRequest(input)
+	url, headers, err := partReq.PresignRequest(expire)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err = http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	req.Header = headers
