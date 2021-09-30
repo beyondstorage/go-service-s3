@@ -8,11 +8,13 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/smithy-go/middleware"
 
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
@@ -109,9 +111,19 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 
+	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
+		options.Region = opt.Location
+		options.APIOptions = append(options.APIOptions,
+			func(stack *middleware.Stack) error {
+				v4.RemoveContentSHA256HeaderMiddleware(stack)
+				v4.RemoveComputePayloadSHA256Middleware(stack)
+				return v4.AddUnsignedPayloadMiddleware(stack)
+			})
+	})
+
 	srv = &Service{
 		cfg:     &cfg,
-		service: newS3Service(&cfg),
+		service: client,
 	}
 
 	if opt.HasDefaultServicePairs {
