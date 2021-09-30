@@ -10,11 +10,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 
 	"github.com/aws/smithy-go/middleware"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
@@ -157,13 +157,14 @@ func formatError(err error) error {
 		return err
 	}
 
-	fmt.Printf("%T", err)
-	e := &awshttp.ResponseError{}
+	fmt.Printf("%T  ", err)
+	fmt.Printf(err.Error())
+	e := err.(*smithy.OperationError)
 	if ok := errors.As(err, &e); !ok {
 		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 	}
 
-	switch err.Error() {
+	switch e.Err.Error() {
 	// AWS SDK will use status code to generate awserr.Error, so "NotFound" should also be supported.
 	case "NoSuchKey", "NotFound":
 		return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
