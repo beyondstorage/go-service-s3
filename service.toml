@@ -4,7 +4,7 @@ name = "s3"
 
 [namespace.service.new]
 required = ["credential"]
-optional = ["service_features", "default_service_pairs", "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
+optional = [ "endpoint", "http_client_options", "force_path_style", "disable_100_continue", "use_accelerate", "use_arn_region"]
 
 [namespace.service.op.create]
 required = ["location"]
@@ -17,11 +17,11 @@ optional = ["location"]
 
 [namespace.storage]
 features = ["virtual_dir", "virtual_link"]
-implement = ["direr", "linker", "multiparter", "storage_http_signer"]
+implement = ["direr", "linker", "multiparter", "storage_http_signer", "multipart_http_signer"]
 
 [namespace.storage.new]
 required = ["location", "name"]
-optional = ["storage_features", "default_storage_pairs", "work_dir"]
+optional = ["work_dir"]
 
 [namespace.storage.op.create]
 optional = ["multipart_id", "object_mode"]
@@ -61,6 +61,9 @@ optional = ["excepted_bucket_owner", "offset", "size", "server_side_encryption_c
 
 [namespace.storage.op.query_sign_http_write]
 optional = ["content_md5", "content_type", "excepted_bucket_owner", "storage_class", "server_side_encryption_bucket_key_enabled", "server_side_encryption_customer_algorithm", "server_side_encryption_customer_key", "server_side_encryption_aws_kms_key_id", "server_side_encryption_context", "server_side_encryption"]
+
+[namespace.storage.op.query_sign_http_delete]
+optional = ["multipart_id", "excepted_bucket_owner", "object_mode"]
 
 [pairs.service_features]
 type = "ServiceFeatures"

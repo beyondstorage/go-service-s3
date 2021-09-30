@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	. "github.com/beyondstorage/go-storage/v4/pairs"
@@ -13,32 +14,27 @@ import (
 	. "github.com/beyondstorage/go-storage/v4/types"
 )
 
-var _ Storager
-var _ services.ServiceError
-var _ httpclient.Options
-var _ time.Duration
-var _ http.Request
-var _ Error
+var (
+	_ Storager
+	_ services.ServiceError
+	_ httpclient.Options
+	_ time.Duration
+	_ http.Request
+	_ Error
+)
 
 // Type is the type for s3
 const Type = "s3"
 
 // ObjectSystemMetadata stores system metadata for object.
 type ObjectSystemMetadata struct {
-	// ServerSideEncryption
-	ServerSideEncryption string
-	// ServerSideEncryptionAwsKmsKeyID
-	ServerSideEncryptionAwsKmsKeyID string
-	// ServerSideEncryptionBucketKeyEnabled
-	ServerSideEncryptionBucketKeyEnabled bool
-	// ServerSideEncryptionContext
-	ServerSideEncryptionContext string
-	// ServerSideEncryptionCustomerAlgorithm
+	ServerSideEncryption                  string
+	ServerSideEncryptionAwsKmsKeyID       string
+	ServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionContext           string
 	ServerSideEncryptionCustomerAlgorithm string
-	// ServerSideEncryptionCustomerKeyMd5
-	ServerSideEncryptionCustomerKeyMd5 string
-	// StorageClass
-	StorageClass string
+	ServerSideEncryptionCustomerKeyMd5    string
+	StorageClass                          string
 }
 
 // GetObjectSystemMetadata will get ObjectSystemMetadata from Object.
@@ -60,13 +56,21 @@ func setObjectSystemMetadata(o *Object, sm ObjectSystemMetadata) {
 	o.SetSystemMetadata(sm)
 }
 
-// StorageSystemMetadata stores system metadata for storage meta.
+// StorageSystemMetadata stores system metadata for object.
 type StorageSystemMetadata struct {
+	ServerSideEncryption                  string
+	ServerSideEncryptionAwsKmsKeyID       string
+	ServerSideEncryptionBucketKeyEnabled  bool
+	ServerSideEncryptionContext           string
+	ServerSideEncryptionCustomerAlgorithm string
+	ServerSideEncryptionCustomerKeyMd5    string
+	StorageClass                          string
 }
 
-// GetStorageSystemMetadata will get SystemMetadata from StorageMeta.
+// GetStorageSystemMetadata will get StorageSystemMetadata from Storage.
 //
-// - The returning StorageSystemMetadata is read only and should not be modified.
+// - This function should not be called by service implementer.
+// - The returning StorageServiceMetadata is read only and should not be modified.
 func GetStorageSystemMetadata(s *StorageMeta) StorageSystemMetadata {
 	sm, ok := s.GetSystemMetadata()
 	if ok {
@@ -75,7 +79,7 @@ func GetStorageSystemMetadata(s *StorageMeta) StorageSystemMetadata {
 	return StorageSystemMetadata{}
 }
 
-// setStorageSystemMetadata will set SystemMetadata into StorageMeta.
+// setStorageSystemMetadata will set StorageSystemMetadata into Storage.
 //
 // - This function should only be called once, please make sure all data has been written before set.
 func setStorageSystemMetadata(s *StorageMeta, sm StorageSystemMetadata) {
@@ -83,249 +87,152 @@ func setStorageSystemMetadata(s *StorageMeta, sm StorageSystemMetadata) {
 }
 
 // WithDefaultServicePairs will apply default_service_pairs value to Options.
-//
-// DefaultServicePairs set default pairs for service actions
 func WithDefaultServicePairs(v DefaultServicePairs) Pair {
-	return Pair{
-		Key:   "default_service_pairs",
-		Value: v,
-	}
+	return Pair{Key: "default_service_pairs", Value: v}
 }
 
 // WithDefaultStorageClass will apply default_storage_class value to Options.
-//
-// StorageClass
 func WithDefaultStorageClass(v string) Pair {
-	return Pair{
-		Key:   "default_storage_class",
-		Value: v,
-	}
+	return Pair{Key: "default_storage_class", Value: v}
 }
 
 // WithDefaultStoragePairs will apply default_storage_pairs value to Options.
-//
-// DefaultStoragePairs set default pairs for storager actions
 func WithDefaultStoragePairs(v DefaultStoragePairs) Pair {
-	return Pair{
-		Key:   "default_storage_pairs",
-		Value: v,
-	}
+	return Pair{Key: "default_storage_pairs", Value: v}
 }
 
 // WithDisable100Continue will apply disable_100_continue value to Options.
 //
-// Disable100Continue set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over 2MB of content
+// set this to `true` to disable the SDK adding the `Expect: 100-Continue` header to PUT requests over
+// 2MB of content
 func WithDisable100Continue() Pair {
-	return Pair{
-		Key:   "disable_100_continue",
-		Value: true,
-	}
+	return Pair{Key: "disable_100_continue", Value: true}
 }
 
 // WithEnableVirtualDir will apply enable_virtual_dir value to Options.
 //
-// VirtualDir virtual_dir feature is designed for a service that doesn't have native dir support but wants to provide simulated operations.
+// virtual_dir feature is designed for a service that doesn't have native dir support but wants to
+// provide simulated operations.
 //
-// - If this feature is disabled (the default behavior), the service will behave like it doesn't have any dir support.
-// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create, list, delete, and so on.
+// - If this feature is disabled (the default behavior), the service will behave like it doesn't have
+// any dir support.
+// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create,
+// list, delete, and so on.
 //
 // This feature was introduced in GSP-109.
 func WithEnableVirtualDir() Pair {
-	return Pair{
-		Key:   "enable_virtual_dir",
-		Value: true,
-	}
+	return Pair{Key: "enable_virtual_dir", Value: true}
 }
 
 // WithEnableVirtualLink will apply enable_virtual_link value to Options.
 //
-// VirtualLink virtual_link feature is designed for a service that doesn't have native support for link.
+// virtual_link feature is designed for a service that doesn't have native support for link.
 //
-// - If this feature is enabled, the service will run compatible mode: create link via native methods, but allow read link from old-style link object.
+// - If this feature is enabled, the service will run compatible mode: create link via native methods,
+// but allow read link from old-style link object.
 // - If this feature is not enabled, the service will run in native as other service.
 //
 // This feature was introduced in GSP-86.
 func WithEnableVirtualLink() Pair {
-	return Pair{
-		Key:   "enable_virtual_link",
-		Value: true,
-	}
+	return Pair{Key: "enable_virtual_link", Value: true}
 }
 
 // WithExceptedBucketOwner will apply excepted_bucket_owner value to Options.
 //
-// ExceptedBucketOwner the account ID of the excepted bucket owner
+// the account ID of the excepted bucket owner
 func WithExceptedBucketOwner(v string) Pair {
-	return Pair{
-		Key:   "excepted_bucket_owner",
-		Value: v,
-	}
+	return Pair{Key: "excepted_bucket_owner", Value: v}
 }
 
 // WithForcePathStyle will apply force_path_style value to Options.
 //
-// ForcePathStyle see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3: Virtual Hosting of Buckets
+// see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html for Amazon S3:
+// Virtual Hosting of Buckets
 func WithForcePathStyle() Pair {
-	return Pair{
-		Key:   "force_path_style",
-		Value: true,
-	}
+	return Pair{Key: "force_path_style", Value: true}
 }
 
 // WithServerSideEncryption will apply server_side_encryption value to Options.
 //
-// ServerSideEncryption the server-side encryption algorithm used when storing this object in Amazon
+// the server-side encryption algorithm used when storing this object in Amazon
 func WithServerSideEncryption(v string) Pair {
-	return Pair{
-		Key:   "server_side_encryption",
-		Value: v,
-	}
+	return Pair{Key: "server_side_encryption", Value: v}
 }
 
-// WithServerSideEncryptionAwsKmsKeyID will apply server_side_encryption_aws_kms_key_id value to Options.
+// WithServerSideEncryptionAwsKmsKeyID will apply server_side_encryption_aws_kms_key_id
+// value to Options.
 //
-// ServerSideEncryptionAwsKmsKeyID specifies the AWS KMS key ID to use for object encryption
+// specifies the AWS KMS key ID to use for object encryption
 func WithServerSideEncryptionAwsKmsKeyID(v string) Pair {
-	return Pair{
-		Key:   "server_side_encryption_aws_kms_key_id",
-		Value: v,
-	}
+	return Pair{Key: "server_side_encryption_aws_kms_key_id", Value: v}
 }
 
-// WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled value to Options.
+// WithServerSideEncryptionBucketKeyEnabled will apply server_side_encryption_bucket_key_enabled
+// value to Options.
 //
-// ServerSideEncryptionBucketKeyEnabled specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using AWS KMS (SSE-KMS)
+// specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side
+// encryption using AWS KMS (SSE-KMS)
 func WithServerSideEncryptionBucketKeyEnabled() Pair {
-	return Pair{
-		Key:   "server_side_encryption_bucket_key_enabled",
-		Value: true,
-	}
+	return Pair{Key: "server_side_encryption_bucket_key_enabled", Value: true}
 }
 
 // WithServerSideEncryptionContext will apply server_side_encryption_context value to Options.
 //
-// ServerSideEncryptionContext specifies the AWS KMS Encryption Context to use for object encryption. The value of this header is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
+// specifies the AWS KMS Encryption Context to use for object encryption. The value of this header
+// is a base64-encoded UTF-8 string holding JSON with the encryption context key-value pairs.
 func WithServerSideEncryptionContext(v string) Pair {
-	return Pair{
-		Key:   "server_side_encryption_context",
-		Value: v,
-	}
+	return Pair{Key: "server_side_encryption_context", Value: v}
 }
 
-// WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm value to Options.
+// WithServerSideEncryptionCustomerAlgorithm will apply server_side_encryption_customer_algorithm
+// value to Options.
 //
-// ServerSideEncryptionCustomerAlgorithm specifies the algorithm to use to when encrypting the object. The header value must be `AES256`.
+// specifies the algorithm to use to when encrypting the object. The header value must be `AES256`.
 func WithServerSideEncryptionCustomerAlgorithm(v string) Pair {
-	return Pair{
-		Key:   "server_side_encryption_customer_algorithm",
-		Value: v,
-	}
+	return Pair{Key: "server_side_encryption_customer_algorithm", Value: v}
 }
 
-// WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value to Options.
+// WithServerSideEncryptionCustomerKey will apply server_side_encryption_customer_key value
+// to Options.
 //
-// ServerSideEncryptionCustomerKey specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source object. It must be 32-byte AES-256 key.
+// specifies the customer-provided encryption key for Amazon S3 to use to encrypt/decrypt the source
+// object. It must be 32-byte AES-256 key.
 func WithServerSideEncryptionCustomerKey(v []byte) Pair {
-	return Pair{
-		Key:   "server_side_encryption_customer_key",
-		Value: v,
-	}
+	return Pair{Key: "server_side_encryption_customer_key", Value: v}
 }
 
 // WithServiceFeatures will apply service_features value to Options.
-//
-// ServiceFeatures set service features
 func WithServiceFeatures(v ServiceFeatures) Pair {
-	return Pair{
-		Key:   "service_features",
-		Value: v,
-	}
+	return Pair{Key: "service_features", Value: v}
 }
 
 // WithStorageClass will apply storage_class value to Options.
-//
-// StorageClass
 func WithStorageClass(v string) Pair {
-	return Pair{
-		Key:   "storage_class",
-		Value: v,
-	}
+	return Pair{Key: "storage_class", Value: v}
 }
 
 // WithStorageFeatures will apply storage_features value to Options.
-//
-// StorageFeatures set storage features
 func WithStorageFeatures(v StorageFeatures) Pair {
-	return Pair{
-		Key:   "storage_features",
-		Value: v,
-	}
+	return Pair{Key: "storage_features", Value: v}
 }
 
 // WithUseAccelerate will apply use_accelerate value to Options.
 //
-// UseAccelerate set this to `true` to enable S3 Accelerate feature
+// set this to `true` to enable S3 Accelerate feature
 func WithUseAccelerate() Pair {
-	return Pair{
-		Key:   "use_accelerate",
-		Value: true,
-	}
+	return Pair{Key: "use_accelerate", Value: true}
 }
 
 // WithUseArnRegion will apply use_arn_region value to Options.
 //
-// UseArnRegion set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN is provided as an argument to a bucket parameter
+// set this to `true` to have the S3 service client to use the region specified in the ARN, when an ARN
+// is provided as an argument to a bucket parameter
 func WithUseArnRegion() Pair {
-	return Pair{
-		Key:   "use_arn_region",
-		Value: true,
-	}
+	return Pair{Key: "use_arn_region", Value: true}
 }
 
-var pairMap = map[string]string{
-	"content_md5":                           "string",
-	"content_type":                          "string",
-	"context":                               "context.Context",
-	"continuation_token":                    "string",
-	"credential":                            "string",
-	"default_content_type":                  "string",
-	"default_io_callback":                   "func([]byte)",
-	"default_service_pairs":                 "DefaultServicePairs",
-	"default_storage_class":                 "string",
-	"default_storage_pairs":                 "DefaultStoragePairs",
-	"disable_100_continue":                  "bool",
-	"enable_virtual_dir":                    "bool",
-	"enable_virtual_link":                   "bool",
-	"endpoint":                              "string",
-	"excepted_bucket_owner":                 "string",
-	"expire":                                "time.Duration",
-	"force_path_style":                      "bool",
-	"http_client_options":                   "*httpclient.Options",
-	"interceptor":                           "Interceptor",
-	"io_callback":                           "func([]byte)",
-	"list_mode":                             "ListMode",
-	"location":                              "string",
-	"multipart_id":                          "string",
-	"name":                                  "string",
-	"object_mode":                           "ObjectMode",
-	"offset":                                "int64",
-	"server_side_encryption":                "string",
-	"server_side_encryption_aws_kms_key_id": "string",
-	"server_side_encryption_bucket_key_enabled": "bool",
-	"server_side_encryption_context":            "string",
-	"server_side_encryption_customer_algorithm": "string",
-	"server_side_encryption_customer_key":       "[]byte",
-	"service_features":                          "ServiceFeatures",
-	"size":                                      "int64",
-	"storage_class":                             "string",
-	"storage_features":                          "StorageFeatures",
-	"use_accelerate":                            "bool",
-	"use_arn_region":                            "bool",
-	"work_dir":                                  "string",
-}
-var (
-	_ Servicer = &Service{}
-)
+var pairMap = map[string]string{"content_md5": "string", "content_type": "string", "context": "context.Context", "continuation_token": "string", "credential": "string", "default_content_type": "string", "default_io_callback": "func([]byte)", "default_service_pairs": "DefaultServicePairs", "default_storage_class": "string", "default_storage_pairs": "DefaultStoragePairs", "disable_100_continue": "bool", "enable_virtual_dir": "bool", "enable_virtual_link": "bool", "endpoint": "string", "excepted_bucket_owner": "string", "expire": "time.Duration", "force_path_style": "bool", "http_client_options": "*httpclient.Options", "interceptor": "Interceptor", "io_callback": "func([]byte)", "list_mode": "ListMode", "location": "string", "multipart_id": "string", "name": "string", "object_mode": "ObjectMode", "offset": "int64", "server_side_encryption": "string", "server_side_encryption_aws_kms_key_id": "string", "server_side_encryption_bucket_key_enabled": "bool", "server_side_encryption_context": "string", "server_side_encryption_customer_algorithm": "string", "server_side_encryption_customer_key": "[]byte", "service_features": "ServiceFeatures", "size": "int64", "storage_class": "string", "storage_features": "StorageFeatures", "use_accelerate": "bool", "use_arn_region": "bool", "work_dir": "string"}
+var _ Servicer = &Service{}
 
 type ServiceFeatures struct {
 }
@@ -355,25 +262,21 @@ type pairServiceNew struct {
 	HasUseArnRegion        bool
 	UseArnRegion           bool
 	// Enable features
-	// Default pairs
 }
 
 // parsePairServiceNew will parse Pair slice into *pairServiceNew
 func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
-	result := pairServiceNew{
-		pairs: opts,
-	}
+	result :=
+		pairServiceNew{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
-		// Required pairs
 		case "credential":
 			if result.HasCredential {
 				continue
 			}
 			result.HasCredential = true
 			result.Credential = v.Value.(string)
-		// Optional pairs
 		case "default_service_pairs":
 			if result.HasDefaultServicePairs {
 				continue
@@ -422,11 +325,8 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasUseArnRegion = true
 			result.UseArnRegion = v.Value.(bool)
-			// Enable features
-			// Default pairs
 		}
 	}
-
 	// Enable features
 
 	// Default pairs
@@ -434,7 +334,6 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 	if !result.HasCredential {
 		return pairServiceNew{}, services.PairRequiredError{Keys: []string{"credential"}}
 	}
-
 	return result, nil
 }
 
@@ -445,19 +344,17 @@ type DefaultServicePairs struct {
 	Get    []Pair
 	List   []Pair
 }
-
-// pairServiceCreate is the parsed struct
 type pairServiceCreate struct {
-	pairs       []Pair
+	pairs []Pair
+	// Required pairs
 	HasLocation bool
 	Location    string
+	// Optional pairs
 }
 
-// parsePairServiceCreate will parse Pair slice into *pairServiceCreate
 func (s *Service) parsePairServiceCreate(opts []Pair) (pairServiceCreate, error) {
-	result := pairServiceCreate{
-		pairs: opts,
-	}
+	result :=
+		pairServiceCreate{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -467,34 +364,29 @@ func (s *Service) parsePairServiceCreate(opts []Pair) (pairServiceCreate, error)
 			}
 			result.HasLocation = true
 			result.Location = v.Value.(string)
-			continue
 		default:
 			return pairServiceCreate{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
-
-	// Check required pairs.
 	if !result.HasLocation {
 		return pairServiceCreate{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
-
 	return result, nil
 }
 
-// pairServiceDelete is the parsed struct
 type pairServiceDelete struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 	HasLocation            bool
 	Location               string
 }
 
-// parsePairServiceDelete will parse Pair slice into *pairServiceDelete
 func (s *Service) parsePairServiceDelete(opts []Pair) (pairServiceDelete, error) {
-	result := pairServiceDelete{
-		pairs: opts,
-	}
+	result :=
+		pairServiceDelete{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -504,36 +396,31 @@ func (s *Service) parsePairServiceDelete(opts []Pair) (pairServiceDelete, error)
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "location":
 			if result.HasLocation {
 				continue
 			}
 			result.HasLocation = true
 			result.Location = v.Value.(string)
-			continue
 		default:
 			return pairServiceDelete{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairServiceGet is the parsed struct
 type pairServiceGet struct {
-	pairs       []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasLocation bool
 	Location    string
 }
 
-// parsePairServiceGet will parse Pair slice into *pairServiceGet
 func (s *Service) parsePairServiceGet(opts []Pair) (pairServiceGet, error) {
-	result := pairServiceGet{
-		pairs: opts,
-	}
+	result :=
+		pairServiceGet{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -543,27 +430,23 @@ func (s *Service) parsePairServiceGet(opts []Pair) (pairServiceGet, error) {
 			}
 			result.HasLocation = true
 			result.Location = v.Value.(string)
-			continue
 		default:
 			return pairServiceGet{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairServiceList is the parsed struct
 type pairServiceList struct {
 	pairs []Pair
+	// Required pairs
+	// Optional pairs
 }
 
-// parsePairServiceList will parse Pair slice into *pairServiceList
 func (s *Service) parsePairServiceList(opts []Pair) (pairServiceList, error) {
-	result := pairServiceList{
-		pairs: opts,
-	}
+	result :=
+		pairServiceList{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -572,23 +455,16 @@ func (s *Service) parsePairServiceList(opts []Pair) (pairServiceList, error) {
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
-
-// Create will create a new storager instance.
-//
-// This function will create a context by default.
 func (s *Service) Create(name string, pairs ...Pair) (store Storager, err error) {
 	ctx := context.Background()
 	return s.CreateWithContext(ctx, name, pairs...)
 }
-
-// CreateWithContext will create a new storager instance.
 func (s *Service) CreateWithContext(ctx context.Context, name string, pairs ...Pair) (store Storager, err error) {
 	defer func() {
-		err = s.formatError("create", err, name)
+		err =
+			s.formatError("create", err, name)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Create...)
@@ -598,22 +474,16 @@ func (s *Service) CreateWithContext(ctx context.Context, name string, pairs ...P
 	if err != nil {
 		return
 	}
-
 	return s.create(ctx, name, opt)
 }
-
-// Delete will delete a storager instance.
-//
-// This function will create a context by default.
 func (s *Service) Delete(name string, pairs ...Pair) (err error) {
 	ctx := context.Background()
 	return s.DeleteWithContext(ctx, name, pairs...)
 }
-
-// DeleteWithContext will delete a storager instance.
 func (s *Service) DeleteWithContext(ctx context.Context, name string, pairs ...Pair) (err error) {
 	defer func() {
-		err = s.formatError("delete", err, name)
+		err =
+			s.formatError("delete", err, name)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Delete...)
@@ -623,22 +493,16 @@ func (s *Service) DeleteWithContext(ctx context.Context, name string, pairs ...P
 	if err != nil {
 		return
 	}
-
 	return s.delete(ctx, name, opt)
 }
-
-// Get will get a valid storager instance for service.
-//
-// This function will create a context by default.
 func (s *Service) Get(name string, pairs ...Pair) (store Storager, err error) {
 	ctx := context.Background()
 	return s.GetWithContext(ctx, name, pairs...)
 }
-
-// GetWithContext will get a valid storager instance for service.
 func (s *Service) GetWithContext(ctx context.Context, name string, pairs ...Pair) (store Storager, err error) {
 	defer func() {
-		err = s.formatError("get", err, name)
+		err =
+			s.formatError("get", err, name)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Get...)
@@ -648,23 +512,16 @@ func (s *Service) GetWithContext(ctx context.Context, name string, pairs ...Pair
 	if err != nil {
 		return
 	}
-
 	return s.get(ctx, name, opt)
 }
-
-// List will list all storager instances under this service.
-//
-// This function will create a context by default.
 func (s *Service) List(pairs ...Pair) (sti *StoragerIterator, err error) {
 	ctx := context.Background()
 	return s.ListWithContext(ctx, pairs...)
 }
-
-// ListWithContext will list all storager instances under this service.
 func (s *Service) ListWithContext(ctx context.Context, pairs ...Pair) (sti *StoragerIterator, err error) {
 	defer func() {
-
-		err = s.formatError("list", err, "")
+		err =
+			s.formatError("list", err, "")
 	}()
 
 	pairs = append(pairs, s.defaultPairs.List...)
@@ -674,29 +531,32 @@ func (s *Service) ListWithContext(ctx context.Context, pairs ...Pair) (sti *Stor
 	if err != nil {
 		return
 	}
-
 	return s.list(ctx, opt)
 }
 
 var (
-	_ Direr             = &Storage{}
-	_ Linker            = &Storage{}
-	_ Multiparter       = &Storage{}
-	_ StorageHTTPSigner = &Storage{}
-	_ Storager          = &Storage{}
+	_ Direr               = &Storage{}
+	_ Linker              = &Storage{}
+	_ MultipartHTTPSigner = &Storage{}
+	_ Multiparter         = &Storage{}
+	_ StorageHTTPSigner   = &Storage{}
+	_ Storager            = &Storage{}
 )
 
-type StorageFeatures struct {
-	// VirtualDir virtual_dir feature is designed for a service that doesn't have native dir support but wants to provide simulated operations.
+type StorageFeatures struct { // virtual_dir feature is designed for a service that doesn't have native dir support but wants to
+	// provide simulated operations.
 	//
-	// - If this feature is disabled (the default behavior), the service will behave like it doesn't have any dir support.
-	// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create, list, delete, and so on.
+	// - If this feature is disabled (the default behavior), the service will behave like it doesn't have
+	// any dir support.
+	// - If this feature is enabled, the service will support simulated dir behavior in create_dir, create,
+	// list, delete, and so on.
 	//
 	// This feature was introduced in GSP-109.
 	VirtualDir bool
-	// VirtualLink virtual_link feature is designed for a service that doesn't have native support for link.
+	// virtual_link feature is designed for a service that doesn't have native support for link.
 	//
-	// - If this feature is enabled, the service will run compatible mode: create link via native methods, but allow read link from old-style link object.
+	// - If this feature is enabled, the service will run compatible mode: create link via native methods,
+	// but allow read link from old-style link object.
 	// - If this feature is not enabled, the service will run in native as other service.
 	//
 	// This feature was introduced in GSP-86.
@@ -713,6 +573,12 @@ type pairStorageNew struct {
 	HasName     bool
 	Name        string
 	// Optional pairs
+	HasDefaultContentType  bool
+	DefaultContentType     string
+	HasDefaultIoCallback   bool
+	DefaultIoCallback      func([]byte)
+	HasDefaultStorageClass bool
+	DefaultStorageClass    string
 	HasDefaultStoragePairs bool
 	DefaultStoragePairs    DefaultStoragePairs
 	HasStorageFeatures     bool
@@ -724,24 +590,15 @@ type pairStorageNew struct {
 	EnableVirtualDir     bool
 	hasEnableVirtualLink bool
 	EnableVirtualLink    bool
-	// Default pairs
-	hasDefaultContentType  bool
-	DefaultContentType     string
-	hasDefaultIoCallback   bool
-	DefaultIoCallback      func([]byte)
-	hasDefaultStorageClass bool
-	DefaultStorageClass    string
 }
 
 // parsePairStorageNew will parse Pair slice into *pairStorageNew
 func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
-	result := pairStorageNew{
-		pairs: opts,
-	}
+	result :=
+		pairStorageNew{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
-		// Required pairs
 		case "location":
 			if result.HasLocation {
 				continue
@@ -754,7 +611,24 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasName = true
 			result.Name = v.Value.(string)
-		// Optional pairs
+		case "default_content_type":
+			if result.HasDefaultContentType {
+				continue
+			}
+			result.HasDefaultContentType = true
+			result.DefaultContentType = v.Value.(string)
+		case "default_io_callback":
+			if result.HasDefaultIoCallback {
+				continue
+			}
+			result.HasDefaultIoCallback = true
+			result.DefaultIoCallback = v.Value.(func([]byte))
+		case "default_storage_class":
+			if result.HasDefaultStorageClass {
+				continue
+			}
+			result.HasDefaultStorageClass = true
+			result.DefaultStorageClass = v.Value.(string)
 		case "default_storage_pairs":
 			if result.HasDefaultStoragePairs {
 				continue
@@ -773,7 +647,6 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.HasWorkDir = true
 			result.WorkDir = v.Value.(string)
-		// Enable features
 		case "enable_virtual_dir":
 			if result.hasEnableVirtualDir {
 				continue
@@ -786,28 +659,8 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 			}
 			result.hasEnableVirtualLink = true
 			result.EnableVirtualLink = true
-		// Default pairs
-		case "default_content_type":
-			if result.hasDefaultContentType {
-				continue
-			}
-			result.hasDefaultContentType = true
-			result.DefaultContentType = v.Value.(string)
-		case "default_io_callback":
-			if result.hasDefaultIoCallback {
-				continue
-			}
-			result.hasDefaultIoCallback = true
-			result.DefaultIoCallback = v.Value.(func([]byte))
-		case "default_storage_class":
-			if result.hasDefaultStorageClass {
-				continue
-			}
-			result.hasDefaultStorageClass = true
-			result.DefaultStorageClass = v.Value.(string)
 		}
 	}
-
 	// Enable features
 	if result.hasEnableVirtualDir {
 		result.HasStorageFeatures = true
@@ -817,67 +670,67 @@ func parsePairStorageNew(opts []Pair) (pairStorageNew, error) {
 		result.HasStorageFeatures = true
 		result.StorageFeatures.VirtualLink = true
 	}
-
 	// Default pairs
-	if result.hasDefaultContentType {
+	if result.HasDefaultContentType {
 		result.HasDefaultStoragePairs = true
 		result.DefaultStoragePairs.QuerySignHTTPWrite = append(result.DefaultStoragePairs.QuerySignHTTPWrite, WithContentType(result.DefaultContentType))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithContentType(result.DefaultContentType))
 	}
-	if result.hasDefaultIoCallback {
+	if result.HasDefaultIoCallback {
 		result.HasDefaultStoragePairs = true
 		result.DefaultStoragePairs.Read = append(result.DefaultStoragePairs.Read, WithIoCallback(result.DefaultIoCallback))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithIoCallback(result.DefaultIoCallback))
 		result.DefaultStoragePairs.WriteMultipart = append(result.DefaultStoragePairs.WriteMultipart, WithIoCallback(result.DefaultIoCallback))
 	}
-	if result.hasDefaultStorageClass {
+	if result.HasDefaultStorageClass {
 		result.HasDefaultStoragePairs = true
 		result.DefaultStoragePairs.CreateDir = append(result.DefaultStoragePairs.CreateDir, WithStorageClass(result.DefaultStorageClass))
 		result.DefaultStoragePairs.QuerySignHTTPWrite = append(result.DefaultStoragePairs.QuerySignHTTPWrite, WithStorageClass(result.DefaultStorageClass))
 		result.DefaultStoragePairs.Write = append(result.DefaultStoragePairs.Write, WithStorageClass(result.DefaultStorageClass))
 	}
-
 	if !result.HasLocation {
 		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"location"}}
 	}
 	if !result.HasName {
 		return pairStorageNew{}, services.PairRequiredError{Keys: []string{"name"}}
 	}
-
 	return result, nil
 }
 
 // DefaultStoragePairs is default pairs for specific action
 type DefaultStoragePairs struct {
-	CompleteMultipart  []Pair
-	Create             []Pair
-	CreateDir          []Pair
-	CreateLink         []Pair
-	CreateMultipart    []Pair
-	Delete             []Pair
-	List               []Pair
-	ListMultipart      []Pair
-	Metadata           []Pair
-	QuerySignHTTPRead  []Pair
-	QuerySignHTTPWrite []Pair
-	Read               []Pair
-	Stat               []Pair
-	Write              []Pair
-	WriteMultipart     []Pair
+	CompleteMultipart              []Pair
+	Create                         []Pair
+	CreateDir                      []Pair
+	CreateLink                     []Pair
+	CreateMultipart                []Pair
+	Delete                         []Pair
+	List                           []Pair
+	ListMultipart                  []Pair
+	Metadata                       []Pair
+	QuerySignHTTPCompleteMultipart []Pair
+	QuerySignHTTPCreateMultipart   []Pair
+	QuerySignHTTPDelete            []Pair
+	QuerySignHTTPListMultipart     []Pair
+	QuerySignHTTPRead              []Pair
+	QuerySignHTTPWrite             []Pair
+	QuerySignHTTPWriteMultipart    []Pair
+	Read                           []Pair
+	Stat                           []Pair
+	Write                          []Pair
+	WriteMultipart                 []Pair
 }
-
-// pairStorageCompleteMultipart is the parsed struct
 type pairStorageCompleteMultipart struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 }
 
-// parsePairStorageCompleteMultipart will parse Pair slice into *pairStorageCompleteMultipart
 func (s *Storage) parsePairStorageCompleteMultipart(opts []Pair) (pairStorageCompleteMultipart, error) {
-	result := pairStorageCompleteMultipart{
-		pairs: opts,
-	}
+	result :=
+		pairStorageCompleteMultipart{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -887,31 +740,27 @@ func (s *Storage) parsePairStorageCompleteMultipart(opts []Pair) (pairStorageCom
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		default:
 			return pairStorageCompleteMultipart{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageCreate is the parsed struct
 type pairStorageCreate struct {
-	pairs          []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasMultipartID bool
 	MultipartID    string
 	HasObjectMode  bool
 	ObjectMode     ObjectMode
 }
 
-// parsePairStorageCreate will parse Pair slice into *pairStorageCreate
 func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error) {
-	result := pairStorageCreate{
-		pairs: opts,
-	}
+	result :=
+		pairStorageCreate{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -921,38 +770,33 @@ func (s *Storage) parsePairStorageCreate(opts []Pair) (pairStorageCreate, error)
 			}
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
-			continue
 		case "object_mode":
 			if result.HasObjectMode {
 				continue
 			}
 			result.HasObjectMode = true
 			result.ObjectMode = v.Value.(ObjectMode)
-			continue
 		default:
 			return pairStorageCreate{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageCreateDir is the parsed struct
 type pairStorageCreateDir struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 	HasStorageClass        bool
 	StorageClass           string
 }
 
-// parsePairStorageCreateDir will parse Pair slice into *pairStorageCreateDir
 func (s *Storage) parsePairStorageCreateDir(opts []Pair) (pairStorageCreateDir, error) {
-	result := pairStorageCreateDir{
-		pairs: opts,
-	}
+	result :=
+		pairStorageCreateDir{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -962,34 +806,29 @@ func (s *Storage) parsePairStorageCreateDir(opts []Pair) (pairStorageCreateDir, 
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "storage_class":
 			if result.HasStorageClass {
 				continue
 			}
 			result.HasStorageClass = true
 			result.StorageClass = v.Value.(string)
-			continue
 		default:
 			return pairStorageCreateDir{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageCreateLink is the parsed struct
 type pairStorageCreateLink struct {
 	pairs []Pair
+	// Required pairs
+	// Optional pairs
 }
 
-// parsePairStorageCreateLink will parse Pair slice into *pairStorageCreateLink
 func (s *Storage) parsePairStorageCreateLink(opts []Pair) (pairStorageCreateLink, error) {
-	result := pairStorageCreateLink{
-		pairs: opts,
-	}
+	result :=
+		pairStorageCreateLink{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -998,14 +837,13 @@ func (s *Storage) parsePairStorageCreateLink(opts []Pair) (pairStorageCreateLink
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageCreateMultipart is the parsed struct
 type pairStorageCreateMultipart struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
 	HasServerSideEncryption                  bool
@@ -1022,11 +860,9 @@ type pairStorageCreateMultipart struct {
 	ServerSideEncryptionCustomerKey          []byte
 }
 
-// parsePairStorageCreateMultipart will parse Pair slice into *pairStorageCreateMultipart
 func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreateMultipart, error) {
-	result := pairStorageCreateMultipart{
-		pairs: opts,
-	}
+	result :=
+		pairStorageCreateMultipart{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1036,62 +872,54 @@ func (s *Storage) parsePairStorageCreateMultipart(opts []Pair) (pairStorageCreat
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "server_side_encryption":
 			if result.HasServerSideEncryption {
 				continue
 			}
 			result.HasServerSideEncryption = true
 			result.ServerSideEncryption = v.Value.(string)
-			continue
 		case "server_side_encryption_aws_kms_key_id":
 			if result.HasServerSideEncryptionAwsKmsKeyID {
 				continue
 			}
 			result.HasServerSideEncryptionAwsKmsKeyID = true
 			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
-			continue
 		case "server_side_encryption_bucket_key_enabled":
 			if result.HasServerSideEncryptionBucketKeyEnabled {
 				continue
 			}
 			result.HasServerSideEncryptionBucketKeyEnabled = true
 			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
-			continue
 		case "server_side_encryption_context":
 			if result.HasServerSideEncryptionContext {
 				continue
 			}
 			result.HasServerSideEncryptionContext = true
 			result.ServerSideEncryptionContext = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		default:
 			return pairStorageCreateMultipart{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageDelete is the parsed struct
 type pairStorageDelete struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 	HasMultipartID         bool
@@ -1100,11 +928,9 @@ type pairStorageDelete struct {
 	ObjectMode             ObjectMode
 }
 
-// parsePairStorageDelete will parse Pair slice into *pairStorageDelete
 func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error) {
-	result := pairStorageDelete{
-		pairs: opts,
-	}
+	result :=
+		pairStorageDelete{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1114,45 +940,39 @@ func (s *Storage) parsePairStorageDelete(opts []Pair) (pairStorageDelete, error)
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "multipart_id":
 			if result.HasMultipartID {
 				continue
 			}
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
-			continue
 		case "object_mode":
 			if result.HasObjectMode {
 				continue
 			}
 			result.HasObjectMode = true
 			result.ObjectMode = v.Value.(ObjectMode)
-			continue
 		default:
 			return pairStorageDelete{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageList is the parsed struct
 type pairStorageList struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 	HasListMode            bool
 	ListMode               ListMode
 }
 
-// parsePairStorageList will parse Pair slice into *pairStorageList
 func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
-	result := pairStorageList{
-		pairs: opts,
-	}
+	result :=
+		pairStorageList{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1162,36 +982,31 @@ func (s *Storage) parsePairStorageList(opts []Pair) (pairStorageList, error) {
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "list_mode":
 			if result.HasListMode {
 				continue
 			}
 			result.HasListMode = true
 			result.ListMode = v.Value.(ListMode)
-			continue
 		default:
 			return pairStorageList{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageListMultipart is the parsed struct
 type pairStorageListMultipart struct {
-	pairs                  []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner bool
 	ExceptedBucketOwner    string
 }
 
-// parsePairStorageListMultipart will parse Pair slice into *pairStorageListMultipart
 func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMultipart, error) {
-	result := pairStorageListMultipart{
-		pairs: opts,
-	}
+	result :=
+		pairStorageListMultipart{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1201,27 +1016,23 @@ func (s *Storage) parsePairStorageListMultipart(opts []Pair) (pairStorageListMul
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		default:
 			return pairStorageListMultipart{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageMetadata is the parsed struct
 type pairStorageMetadata struct {
 	pairs []Pair
+	// Required pairs
+	// Optional pairs
 }
 
-// parsePairStorageMetadata will parse Pair slice into *pairStorageMetadata
 func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, error) {
-	result := pairStorageMetadata{
-		pairs: opts,
-	}
+	result :=
+		pairStorageMetadata{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1230,14 +1041,117 @@ func (s *Storage) parsePairStorageMetadata(opts []Pair) (pairStorageMetadata, er
 		}
 	}
 
-	// Check required pairs.
+	return result, nil
+}
+
+type pairStorageQuerySignHTTPCompleteMultipart struct {
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
+}
+
+func (s *Storage) parsePairStorageQuerySignHTTPCompleteMultipart(opts []Pair) (pairStorageQuerySignHTTPCompleteMultipart, error) {
+	result :=
+		pairStorageQuerySignHTTPCompleteMultipart{pairs: opts}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageQuerySignHTTPCompleteMultipart{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
 
 	return result, nil
 }
 
-// pairStorageQuerySignHTTPRead is the parsed struct
+type pairStorageQuerySignHTTPCreateMultipart struct {
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
+}
+
+func (s *Storage) parsePairStorageQuerySignHTTPCreateMultipart(opts []Pair) (pairStorageQuerySignHTTPCreateMultipart, error) {
+	result :=
+		pairStorageQuerySignHTTPCreateMultipart{pairs: opts}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageQuerySignHTTPCreateMultipart{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
+
+	return result, nil
+}
+
+type pairStorageQuerySignHTTPDelete struct {
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
+	HasExceptedBucketOwner bool
+	ExceptedBucketOwner    string
+	HasMultipartID         bool
+	MultipartID            string
+	HasObjectMode          bool
+	ObjectMode             ObjectMode
+}
+
+func (s *Storage) parsePairStorageQuerySignHTTPDelete(opts []Pair) (pairStorageQuerySignHTTPDelete, error) {
+	result :=
+		pairStorageQuerySignHTTPDelete{pairs: opts}
+
+	for _, v := range opts {
+		switch v.Key {
+		case "excepted_bucket_owner":
+			if result.HasExceptedBucketOwner {
+				continue
+			}
+			result.HasExceptedBucketOwner = true
+			result.ExceptedBucketOwner = v.Value.(string)
+		case "multipart_id":
+			if result.HasMultipartID {
+				continue
+			}
+			result.HasMultipartID = true
+			result.MultipartID = v.Value.(string)
+		case "object_mode":
+			if result.HasObjectMode {
+				continue
+			}
+			result.HasObjectMode = true
+			result.ObjectMode = v.Value.(ObjectMode)
+		default:
+			return pairStorageQuerySignHTTPDelete{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
+
+	return result, nil
+}
+
+type pairStorageQuerySignHTTPListMultipart struct {
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
+}
+
+func (s *Storage) parsePairStorageQuerySignHTTPListMultipart(opts []Pair) (pairStorageQuerySignHTTPListMultipart, error) {
+	result :=
+		pairStorageQuerySignHTTPListMultipart{pairs: opts}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageQuerySignHTTPListMultipart{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
+
+	return result, nil
+}
+
 type pairStorageQuerySignHTTPRead struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
 	HasOffset                                bool
@@ -1250,11 +1164,9 @@ type pairStorageQuerySignHTTPRead struct {
 	Size                                     int64
 }
 
-// parsePairStorageQuerySignHTTPRead will parse Pair slice into *pairStorageQuerySignHTTPRead
 func (s *Storage) parsePairStorageQuerySignHTTPRead(opts []Pair) (pairStorageQuerySignHTTPRead, error) {
-	result := pairStorageQuerySignHTTPRead{
-		pairs: opts,
-	}
+	result :=
+		pairStorageQuerySignHTTPRead{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1264,48 +1176,42 @@ func (s *Storage) parsePairStorageQuerySignHTTPRead(opts []Pair) (pairStorageQue
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "offset":
 			if result.HasOffset {
 				continue
 			}
 			result.HasOffset = true
 			result.Offset = v.Value.(int64)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		case "size":
 			if result.HasSize {
 				continue
 			}
 			result.HasSize = true
 			result.Size = v.Value.(int64)
-			continue
 		default:
 			return pairStorageQuerySignHTTPRead{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageQuerySignHTTPWrite is the parsed struct
 type pairStorageQuerySignHTTPWrite struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasContentMd5                            bool
 	ContentMd5                               string
 	HasContentType                           bool
@@ -1328,11 +1234,9 @@ type pairStorageQuerySignHTTPWrite struct {
 	StorageClass                             string
 }
 
-// parsePairStorageQuerySignHTTPWrite will parse Pair slice into *pairStorageQuerySignHTTPWrite
 func (s *Storage) parsePairStorageQuerySignHTTPWrite(opts []Pair) (pairStorageQuerySignHTTPWrite, error) {
-	result := pairStorageQuerySignHTTPWrite{
-		pairs: opts,
-	}
+	result :=
+		pairStorageQuerySignHTTPWrite{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1342,83 +1246,92 @@ func (s *Storage) parsePairStorageQuerySignHTTPWrite(opts []Pair) (pairStorageQu
 			}
 			result.HasContentMd5 = true
 			result.ContentMd5 = v.Value.(string)
-			continue
 		case "content_type":
 			if result.HasContentType {
 				continue
 			}
 			result.HasContentType = true
 			result.ContentType = v.Value.(string)
-			continue
 		case "excepted_bucket_owner":
 			if result.HasExceptedBucketOwner {
 				continue
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "server_side_encryption":
 			if result.HasServerSideEncryption {
 				continue
 			}
 			result.HasServerSideEncryption = true
 			result.ServerSideEncryption = v.Value.(string)
-			continue
 		case "server_side_encryption_aws_kms_key_id":
 			if result.HasServerSideEncryptionAwsKmsKeyID {
 				continue
 			}
 			result.HasServerSideEncryptionAwsKmsKeyID = true
 			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
-			continue
 		case "server_side_encryption_bucket_key_enabled":
 			if result.HasServerSideEncryptionBucketKeyEnabled {
 				continue
 			}
 			result.HasServerSideEncryptionBucketKeyEnabled = true
 			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
-			continue
 		case "server_side_encryption_context":
 			if result.HasServerSideEncryptionContext {
 				continue
 			}
 			result.HasServerSideEncryptionContext = true
 			result.ServerSideEncryptionContext = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		case "storage_class":
 			if result.HasStorageClass {
 				continue
 			}
 			result.HasStorageClass = true
 			result.StorageClass = v.Value.(string)
-			continue
 		default:
 			return pairStorageQuerySignHTTPWrite{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
+	return result, nil
+}
+
+type pairStorageQuerySignHTTPWriteMultipart struct {
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
+}
+
+func (s *Storage) parsePairStorageQuerySignHTTPWriteMultipart(opts []Pair) (pairStorageQuerySignHTTPWriteMultipart, error) {
+	result :=
+		pairStorageQuerySignHTTPWriteMultipart{pairs: opts}
+
+	for _, v := range opts {
+		switch v.Key {
+		default:
+			return pairStorageQuerySignHTTPWriteMultipart{}, services.PairUnsupportedError{Pair: v}
+		}
+	}
 
 	return result, nil
 }
 
-// pairStorageRead is the parsed struct
 type pairStorageRead struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
 	HasIoCallback                            bool
@@ -1433,11 +1346,9 @@ type pairStorageRead struct {
 	Size                                     int64
 }
 
-// parsePairStorageRead will parse Pair slice into *pairStorageRead
 func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
-	result := pairStorageRead{
-		pairs: opts,
-	}
+	result :=
+		pairStorageRead{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1447,55 +1358,48 @@ func (s *Storage) parsePairStorageRead(opts []Pair) (pairStorageRead, error) {
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "io_callback":
 			if result.HasIoCallback {
 				continue
 			}
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
-			continue
 		case "offset":
 			if result.HasOffset {
 				continue
 			}
 			result.HasOffset = true
 			result.Offset = v.Value.(int64)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		case "size":
 			if result.HasSize {
 				continue
 			}
 			result.HasSize = true
 			result.Size = v.Value.(int64)
-			continue
 		default:
 			return pairStorageRead{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageStat is the parsed struct
 type pairStorageStat struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
 	HasMultipartID                           bool
@@ -1508,11 +1412,9 @@ type pairStorageStat struct {
 	ServerSideEncryptionCustomerKey          []byte
 }
 
-// parsePairStorageStat will parse Pair slice into *pairStorageStat
 func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
-	result := pairStorageStat{
-		pairs: opts,
-	}
+	result :=
+		pairStorageStat{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1522,48 +1424,42 @@ func (s *Storage) parsePairStorageStat(opts []Pair) (pairStorageStat, error) {
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "multipart_id":
 			if result.HasMultipartID {
 				continue
 			}
 			result.HasMultipartID = true
 			result.MultipartID = v.Value.(string)
-			continue
 		case "object_mode":
 			if result.HasObjectMode {
 				continue
 			}
 			result.HasObjectMode = true
 			result.ObjectMode = v.Value.(ObjectMode)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		default:
 			return pairStorageStat{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageWrite is the parsed struct
 type pairStorageWrite struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasContentMd5                            bool
 	ContentMd5                               string
 	HasContentType                           bool
@@ -1588,11 +1484,9 @@ type pairStorageWrite struct {
 	StorageClass                             string
 }
 
-// parsePairStorageWrite will parse Pair slice into *pairStorageWrite
 func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
-	result := pairStorageWrite{
-		pairs: opts,
-	}
+	result :=
+		pairStorageWrite{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1602,90 +1496,78 @@ func (s *Storage) parsePairStorageWrite(opts []Pair) (pairStorageWrite, error) {
 			}
 			result.HasContentMd5 = true
 			result.ContentMd5 = v.Value.(string)
-			continue
 		case "content_type":
 			if result.HasContentType {
 				continue
 			}
 			result.HasContentType = true
 			result.ContentType = v.Value.(string)
-			continue
 		case "excepted_bucket_owner":
 			if result.HasExceptedBucketOwner {
 				continue
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "io_callback":
 			if result.HasIoCallback {
 				continue
 			}
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
-			continue
 		case "server_side_encryption":
 			if result.HasServerSideEncryption {
 				continue
 			}
 			result.HasServerSideEncryption = true
 			result.ServerSideEncryption = v.Value.(string)
-			continue
 		case "server_side_encryption_aws_kms_key_id":
 			if result.HasServerSideEncryptionAwsKmsKeyID {
 				continue
 			}
 			result.HasServerSideEncryptionAwsKmsKeyID = true
 			result.ServerSideEncryptionAwsKmsKeyID = v.Value.(string)
-			continue
 		case "server_side_encryption_bucket_key_enabled":
 			if result.HasServerSideEncryptionBucketKeyEnabled {
 				continue
 			}
 			result.HasServerSideEncryptionBucketKeyEnabled = true
 			result.ServerSideEncryptionBucketKeyEnabled = v.Value.(bool)
-			continue
 		case "server_side_encryption_context":
 			if result.HasServerSideEncryptionContext {
 				continue
 			}
 			result.HasServerSideEncryptionContext = true
 			result.ServerSideEncryptionContext = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		case "storage_class":
 			if result.HasStorageClass {
 				continue
 			}
 			result.HasStorageClass = true
 			result.StorageClass = v.Value.(string)
-			continue
 		default:
 			return pairStorageWrite{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
 
-// pairStorageWriteMultipart is the parsed struct
 type pairStorageWriteMultipart struct {
-	pairs                                    []Pair
+	pairs []Pair
+	// Required pairs
+	// Optional pairs
 	HasExceptedBucketOwner                   bool
 	ExceptedBucketOwner                      string
 	HasIoCallback                            bool
@@ -1696,11 +1578,9 @@ type pairStorageWriteMultipart struct {
 	ServerSideEncryptionCustomerKey          []byte
 }
 
-// parsePairStorageWriteMultipart will parse Pair slice into *pairStorageWriteMultipart
 func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteMultipart, error) {
-	result := pairStorageWriteMultipart{
-		pairs: opts,
-	}
+	result :=
+		pairStorageWriteMultipart{pairs: opts}
 
 	for _, v := range opts {
 		switch v.Key {
@@ -1710,56 +1590,44 @@ func (s *Storage) parsePairStorageWriteMultipart(opts []Pair) (pairStorageWriteM
 			}
 			result.HasExceptedBucketOwner = true
 			result.ExceptedBucketOwner = v.Value.(string)
-			continue
 		case "io_callback":
 			if result.HasIoCallback {
 				continue
 			}
 			result.HasIoCallback = true
 			result.IoCallback = v.Value.(func([]byte))
-			continue
 		case "server_side_encryption_customer_algorithm":
 			if result.HasServerSideEncryptionCustomerAlgorithm {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerAlgorithm = true
 			result.ServerSideEncryptionCustomerAlgorithm = v.Value.(string)
-			continue
 		case "server_side_encryption_customer_key":
 			if result.HasServerSideEncryptionCustomerKey {
 				continue
 			}
 			result.HasServerSideEncryptionCustomerKey = true
 			result.ServerSideEncryptionCustomerKey = v.Value.([]byte)
-			continue
 		default:
 			return pairStorageWriteMultipart{}, services.PairUnsupportedError{Pair: v}
 		}
 	}
 
-	// Check required pairs.
-
 	return result, nil
 }
-
-// CompleteMultipart will complete a multipart upload and construct an Object.
-//
-// This function will create a context by default.
 func (s *Storage) CompleteMultipart(o *Object, parts []*Part, pairs ...Pair) (err error) {
 	ctx := context.Background()
 	return s.CompleteMultipartWithContext(ctx, o, parts, pairs...)
 }
-
-// CompleteMultipartWithContext will complete a multipart upload and construct an Object.
 func (s *Storage) CompleteMultipartWithContext(ctx context.Context, o *Object, parts []*Part, pairs ...Pair) (err error) {
 	defer func() {
-		err = s.formatError("complete_multipart", err)
+		err =
+			s.formatError("complete_multipart", err)
 	}()
 	if !o.Mode.IsPart() {
 		err = services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
 		return
 	}
-
 	pairs = append(pairs, s.defaultPairs.CompleteMultipart...)
 	var opt pairStorageCompleteMultipart
 
@@ -1767,40 +1635,24 @@ func (s *Storage) CompleteMultipartWithContext(ctx context.Context, o *Object, p
 	if err != nil {
 		return
 	}
-
 	return s.completeMultipart(ctx, o, parts, opt)
 }
-
-// Create will create a new object without any api call.
-//
-// ## Behavior
-//
-// - Create SHOULD NOT send any API call.
-// - Create SHOULD accept ObjectMode pair as object mode.
-//
-// This function will create a context by default.
 func (s *Storage) Create(path string, pairs ...Pair) (o *Object) {
 	pairs = append(pairs, s.defaultPairs.Create...)
 	var opt pairStorageCreate
 
-	// Ignore error while handling local funtions.
+	// Ignore error while handling local functions.
 	opt, _ = s.parsePairStorageCreate(pairs)
-
 	return s.create(path, opt)
 }
-
-// CreateDir will create a new dir object.
-//
-// This function will create a context by default.
 func (s *Storage) CreateDir(path string, pairs ...Pair) (o *Object, err error) {
 	ctx := context.Background()
 	return s.CreateDirWithContext(ctx, path, pairs...)
 }
-
-// CreateDirWithContext will create a new dir object.
 func (s *Storage) CreateDirWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
 	defer func() {
-		err = s.formatError("create_dir", err, path)
+		err =
+			s.formatError("create_dir", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.CreateDir...)
@@ -1810,44 +1662,16 @@ func (s *Storage) CreateDirWithContext(ctx context.Context, path string, pairs .
 	if err != nil {
 		return
 	}
-
-	return s.createDir(ctx, path, opt)
+	return s.createDir(ctx, strings.ReplaceAll(path, "\\", "/"), opt)
 }
-
-// CreateLink Will create a link object.
-//
-// # Behavior
-//
-// - `path` and `target` COULD be relative or absolute path.
-// - If `target` not exists, CreateLink will still create a link object to path.
-// - If `path` exists:
-//   - If `path` is a symlink object, CreateLink will remove the symlink object and create a new link object to path.
-//   - If `path` is not a symlink object, CreateLink will return an ErrObjectModeInvalid error when the service does not support overwrite.
-// - A link object COULD be returned in `Stat` or `List`.
-// - CreateLink COULD implement virtual_link feature when service without native support.
-//   - Users SHOULD enable this feature by themselves.
-//
-// This function will create a context by default.
 func (s *Storage) CreateLink(path string, target string, pairs ...Pair) (o *Object, err error) {
 	ctx := context.Background()
 	return s.CreateLinkWithContext(ctx, path, target, pairs...)
 }
-
-// CreateLinkWithContext Will create a link object.
-//
-// # Behavior
-//
-// - `path` and `target` COULD be relative or absolute path.
-// - If `target` not exists, CreateLink will still create a link object to path.
-// - If `path` exists:
-//   - If `path` is a symlink object, CreateLink will remove the symlink object and create a new link object to path.
-//   - If `path` is not a symlink object, CreateLink will return an ErrObjectModeInvalid error when the service does not support overwrite.
-// - A link object COULD be returned in `Stat` or `List`.
-// - CreateLink COULD implement virtual_link feature when service without native support.
-//   - Users SHOULD enable this feature by themselves.
 func (s *Storage) CreateLinkWithContext(ctx context.Context, path string, target string, pairs ...Pair) (o *Object, err error) {
 	defer func() {
-		err = s.formatError("create_link", err, path, target)
+		err =
+			s.formatError("create_link", err, path, target)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.CreateLink...)
@@ -1857,30 +1681,16 @@ func (s *Storage) CreateLinkWithContext(ctx context.Context, path string, target
 	if err != nil {
 		return
 	}
-
-	return s.createLink(ctx, path, target, opt)
+	return s.createLink(ctx, strings.ReplaceAll(path, "\\", "/"), strings.ReplaceAll(target, "\\", "/"), opt)
 }
-
-// CreateMultipart will create a new multipart.
-//
-// ## Behavior
-//
-// - CreateMultipart SHOULD NOT return an error as the object exists.
-//
-// This function will create a context by default.
 func (s *Storage) CreateMultipart(path string, pairs ...Pair) (o *Object, err error) {
 	ctx := context.Background()
 	return s.CreateMultipartWithContext(ctx, path, pairs...)
 }
-
-// CreateMultipartWithContext will create a new multipart.
-//
-// ## Behavior
-//
-// - CreateMultipart SHOULD NOT return an error as the object exists.
 func (s *Storage) CreateMultipartWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
 	defer func() {
-		err = s.formatError("create_multipart", err, path)
+		err =
+			s.formatError("create_multipart", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.CreateMultipart...)
@@ -1890,42 +1700,16 @@ func (s *Storage) CreateMultipartWithContext(ctx context.Context, path string, p
 	if err != nil {
 		return
 	}
-
-	return s.createMultipart(ctx, path, opt)
+	return s.createMultipart(ctx, strings.ReplaceAll(path, "\\", "/"), opt)
 }
-
-// Delete will delete an object from service.
-//
-// ## Behavior
-//
-// - Delete only delete one and only one object.
-//   - Service DON'T NEED to support remove all.
-//   - User NEED to implement remove_all by themself.
-// - Delete is idempotent.
-//   - Successful delete always return nil error.
-//   - Delete SHOULD never return `ObjectNotExist`
-//   - Delete DON'T NEED to check the object exist or not.
-//
-// This function will create a context by default.
 func (s *Storage) Delete(path string, pairs ...Pair) (err error) {
 	ctx := context.Background()
 	return s.DeleteWithContext(ctx, path, pairs...)
 }
-
-// DeleteWithContext will delete an object from service.
-//
-// ## Behavior
-//
-// - Delete only delete one and only one object.
-//   - Service DON'T NEED to support remove all.
-//   - User NEED to implement remove_all by themself.
-// - Delete is idempotent.
-//   - Successful delete always return nil error.
-//   - Delete SHOULD never return `ObjectNotExist`
-//   - Delete DON'T NEED to check the object exist or not.
 func (s *Storage) DeleteWithContext(ctx context.Context, path string, pairs ...Pair) (err error) {
 	defer func() {
-		err = s.formatError("delete", err, path)
+		err =
+			s.formatError("delete", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Delete...)
@@ -1935,34 +1719,16 @@ func (s *Storage) DeleteWithContext(ctx context.Context, path string, pairs ...P
 	if err != nil {
 		return
 	}
-
-	return s.delete(ctx, path, opt)
+	return s.delete(ctx, strings.ReplaceAll(path, "\\", "/"), opt)
 }
-
-// List will return list a specific path.
-//
-// ## Behavior
-//
-// - Service SHOULD support default `ListMode`.
-// - Service SHOULD implement `ListModeDir` without the check for `VirtualDir`.
-// - Service DON'T NEED to `Stat` while in `List`.
-//
-// This function will create a context by default.
 func (s *Storage) List(path string, pairs ...Pair) (oi *ObjectIterator, err error) {
 	ctx := context.Background()
 	return s.ListWithContext(ctx, path, pairs...)
 }
-
-// ListWithContext will return list a specific path.
-//
-// ## Behavior
-//
-// - Service SHOULD support default `ListMode`.
-// - Service SHOULD implement `ListModeDir` without the check for `VirtualDir`.
-// - Service DON'T NEED to `Stat` while in `List`.
 func (s *Storage) ListWithContext(ctx context.Context, path string, pairs ...Pair) (oi *ObjectIterator, err error) {
 	defer func() {
-		err = s.formatError("list", err, path)
+		err =
+			s.formatError("list", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.List...)
@@ -1972,28 +1738,21 @@ func (s *Storage) ListWithContext(ctx context.Context, path string, pairs ...Pai
 	if err != nil {
 		return
 	}
-
-	return s.list(ctx, path, opt)
+	return s.list(ctx, strings.ReplaceAll(path, "\\", "/"), opt)
 }
-
-// ListMultipart will list parts belong to this multipart.
-//
-// This function will create a context by default.
 func (s *Storage) ListMultipart(o *Object, pairs ...Pair) (pi *PartIterator, err error) {
 	ctx := context.Background()
 	return s.ListMultipartWithContext(ctx, o, pairs...)
 }
-
-// ListMultipartWithContext will list parts belong to this multipart.
 func (s *Storage) ListMultipartWithContext(ctx context.Context, o *Object, pairs ...Pair) (pi *PartIterator, err error) {
 	defer func() {
-		err = s.formatError("list_multipart", err)
+		err =
+			s.formatError("list_multipart", err)
 	}()
 	if !o.Mode.IsPart() {
 		err = services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
 		return
 	}
-
 	pairs = append(pairs, s.defaultPairs.ListMultipart...)
 	var opt pairStorageListMultipart
 
@@ -2001,35 +1760,100 @@ func (s *Storage) ListMultipartWithContext(ctx context.Context, o *Object, pairs
 	if err != nil {
 		return
 	}
-
 	return s.listMultipart(ctx, o, opt)
 }
-
-// Metadata will return current storager metadata.
-//
-// This function will create a context by default.
 func (s *Storage) Metadata(pairs ...Pair) (meta *StorageMeta) {
 	pairs = append(pairs, s.defaultPairs.Metadata...)
 	var opt pairStorageMetadata
 
-	// Ignore error while handling local funtions.
+	// Ignore error while handling local functions.
 	opt, _ = s.parsePairStorageMetadata(pairs)
-
 	return s.metadata(opt)
 }
+func (s *Storage) QuerySignHTTPCompleteMultipart(o *Object, parts []*Part, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPCompleteMultipartWithContext(ctx, o, parts, expire, pairs...)
+}
+func (s *Storage) QuerySignHTTPCompleteMultipartWithContext(ctx context.Context, o *Object, parts []*Part, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err =
+			s.formatError("query_sign_http_complete_multipart", err)
+	}()
 
-// QuerySignHTTPRead will read data from the file by using query parameters to authenticate requests.
-//
-// This function will create a context by default.
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTPCompleteMultipart...)
+	var opt pairStorageQuerySignHTTPCompleteMultipart
+
+	opt, err = s.parsePairStorageQuerySignHTTPCompleteMultipart(pairs)
+	if err != nil {
+		return
+	}
+	return s.querySignHTTPCompleteMultipart(ctx, o, parts, expire, opt)
+}
+func (s *Storage) QuerySignHTTPCreateMultipart(path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPCreateMultipartWithContext(ctx, path, expire, pairs...)
+}
+func (s *Storage) QuerySignHTTPCreateMultipartWithContext(ctx context.Context, path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err =
+			s.formatError("query_sign_http_create_multipart", err, path)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTPCreateMultipart...)
+	var opt pairStorageQuerySignHTTPCreateMultipart
+
+	opt, err = s.parsePairStorageQuerySignHTTPCreateMultipart(pairs)
+	if err != nil {
+		return
+	}
+	return s.querySignHTTPCreateMultipart(ctx, strings.ReplaceAll(path, "\\", "/"), expire, opt)
+}
+func (s *Storage) QuerySignHTTPDelete(path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPDeleteWithContext(ctx, path, expire, pairs...)
+}
+func (s *Storage) QuerySignHTTPDeleteWithContext(ctx context.Context, path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err =
+			s.formatError("query_sign_http_delete", err, path)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTPDelete...)
+	var opt pairStorageQuerySignHTTPDelete
+
+	opt, err = s.parsePairStorageQuerySignHTTPDelete(pairs)
+	if err != nil {
+		return
+	}
+	return s.querySignHTTPDelete(ctx, strings.ReplaceAll(path, "\\", "/"), expire, opt)
+}
+func (s *Storage) QuerySignHTTPListMultipart(o *Object, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPListMultipartWithContext(ctx, o, expire, pairs...)
+}
+func (s *Storage) QuerySignHTTPListMultipartWithContext(ctx context.Context, o *Object, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err =
+			s.formatError("query_sign_http_list_multipart", err)
+	}()
+
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTPListMultipart...)
+	var opt pairStorageQuerySignHTTPListMultipart
+
+	opt, err = s.parsePairStorageQuerySignHTTPListMultipart(pairs)
+	if err != nil {
+		return
+	}
+	return s.querySignHTTPListMultipart(ctx, o, expire, opt)
+}
 func (s *Storage) QuerySignHTTPRead(path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
 	ctx := context.Background()
 	return s.QuerySignHTTPReadWithContext(ctx, path, expire, pairs...)
 }
-
-// QuerySignHTTPReadWithContext will read data from the file by using query parameters to authenticate requests.
 func (s *Storage) QuerySignHTTPReadWithContext(ctx context.Context, path string, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
 	defer func() {
-		err = s.formatError("query_sign_http_read", err, path)
+		err =
+			s.formatError("query_sign_http_read", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.QuerySignHTTPRead...)
@@ -2039,22 +1863,16 @@ func (s *Storage) QuerySignHTTPReadWithContext(ctx context.Context, path string,
 	if err != nil {
 		return
 	}
-
-	return s.querySignHTTPRead(ctx, path, expire, opt)
+	return s.querySignHTTPRead(ctx, strings.ReplaceAll(path, "\\", "/"), expire, opt)
 }
-
-// QuerySignHTTPWrite will write data into a file by using query parameters to authenticate requests.
-//
-// This function will create a context by default.
 func (s *Storage) QuerySignHTTPWrite(path string, size int64, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
 	ctx := context.Background()
 	return s.QuerySignHTTPWriteWithContext(ctx, path, size, expire, pairs...)
 }
-
-// QuerySignHTTPWriteWithContext will write data into a file by using query parameters to authenticate requests.
 func (s *Storage) QuerySignHTTPWriteWithContext(ctx context.Context, path string, size int64, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
 	defer func() {
-		err = s.formatError("query_sign_http_write", err, path)
+		err =
+			s.formatError("query_sign_http_write", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.QuerySignHTTPWrite...)
@@ -2064,22 +1882,35 @@ func (s *Storage) QuerySignHTTPWriteWithContext(ctx context.Context, path string
 	if err != nil {
 		return
 	}
-
-	return s.querySignHTTPWrite(ctx, path, size, expire, opt)
+	return s.querySignHTTPWrite(ctx, strings.ReplaceAll(path, "\\", "/"), size, expire, opt)
 }
+func (s *Storage) QuerySignHTTPWriteMultipart(o *Object, size int64, index int, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	ctx := context.Background()
+	return s.QuerySignHTTPWriteMultipartWithContext(ctx, o, size, index, expire, pairs...)
+}
+func (s *Storage) QuerySignHTTPWriteMultipartWithContext(ctx context.Context, o *Object, size int64, index int, expire time.Duration, pairs ...Pair) (req *http.Request, err error) {
+	defer func() {
+		err =
+			s.formatError("query_sign_http_write_multipart", err)
+	}()
 
-// Read will read the file's data.
-//
-// This function will create a context by default.
+	pairs = append(pairs, s.defaultPairs.QuerySignHTTPWriteMultipart...)
+	var opt pairStorageQuerySignHTTPWriteMultipart
+
+	opt, err = s.parsePairStorageQuerySignHTTPWriteMultipart(pairs)
+	if err != nil {
+		return
+	}
+	return s.querySignHTTPWriteMultipart(ctx, o, size, index, expire, opt)
+}
 func (s *Storage) Read(path string, w io.Writer, pairs ...Pair) (n int64, err error) {
 	ctx := context.Background()
 	return s.ReadWithContext(ctx, path, w, pairs...)
 }
-
-// ReadWithContext will read the file's data.
 func (s *Storage) ReadWithContext(ctx context.Context, path string, w io.Writer, pairs ...Pair) (n int64, err error) {
 	defer func() {
-		err = s.formatError("read", err, path)
+		err =
+			s.formatError("read", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Read...)
@@ -2089,34 +1920,16 @@ func (s *Storage) ReadWithContext(ctx context.Context, path string, w io.Writer,
 	if err != nil {
 		return
 	}
-
-	return s.read(ctx, path, w, opt)
+	return s.read(ctx, strings.ReplaceAll(path, "\\", "/"), w, opt)
 }
-
-// Stat will stat a path to get info of an object.
-//
-// ## Behavior
-//
-// - Stat SHOULD accept ObjectMode pair as hints.
-//   - Service COULD have different implementations for different object mode.
-//   - Service SHOULD check if returning ObjectMode is match
-//
-// This function will create a context by default.
 func (s *Storage) Stat(path string, pairs ...Pair) (o *Object, err error) {
 	ctx := context.Background()
 	return s.StatWithContext(ctx, path, pairs...)
 }
-
-// StatWithContext will stat a path to get info of an object.
-//
-// ## Behavior
-//
-// - Stat SHOULD accept ObjectMode pair as hints.
-//   - Service COULD have different implementations for different object mode.
-//   - Service SHOULD check if returning ObjectMode is match
 func (s *Storage) StatWithContext(ctx context.Context, path string, pairs ...Pair) (o *Object, err error) {
 	defer func() {
-		err = s.formatError("stat", err, path)
+		err =
+			s.formatError("stat", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Stat...)
@@ -2126,36 +1939,16 @@ func (s *Storage) StatWithContext(ctx context.Context, path string, pairs ...Pai
 	if err != nil {
 		return
 	}
-
-	return s.stat(ctx, path, opt)
+	return s.stat(ctx, strings.ReplaceAll(path, "\\", "/"), opt)
 }
-
-// Write will write data into a file.
-//
-// ## Behavior
-//
-// - Write SHOULD NOT return an error as the object exist.
-//   - Service that has native support for `overwrite` doesn't NEED to check the object exists or not.
-//   - Service that doesn't have native support for `overwrite` SHOULD check and delete the object if exists.
-// - A successful write operation SHOULD be complete, which means the object's content and metadata should be the same as specified in write request.
-//
-// This function will create a context by default.
 func (s *Storage) Write(path string, r io.Reader, size int64, pairs ...Pair) (n int64, err error) {
 	ctx := context.Background()
 	return s.WriteWithContext(ctx, path, r, size, pairs...)
 }
-
-// WriteWithContext will write data into a file.
-//
-// ## Behavior
-//
-// - Write SHOULD NOT return an error as the object exist.
-//   - Service that has native support for `overwrite` doesn't NEED to check the object exists or not.
-//   - Service that doesn't have native support for `overwrite` SHOULD check and delete the object if exists.
-// - A successful write operation SHOULD be complete, which means the object's content and metadata should be the same as specified in write request.
 func (s *Storage) WriteWithContext(ctx context.Context, path string, r io.Reader, size int64, pairs ...Pair) (n int64, err error) {
 	defer func() {
-		err = s.formatError("write", err, path)
+		err =
+			s.formatError("write", err, path)
 	}()
 
 	pairs = append(pairs, s.defaultPairs.Write...)
@@ -2165,28 +1958,21 @@ func (s *Storage) WriteWithContext(ctx context.Context, path string, r io.Reader
 	if err != nil {
 		return
 	}
-
-	return s.write(ctx, path, r, size, opt)
+	return s.write(ctx, strings.ReplaceAll(path, "\\", "/"), r, size, opt)
 }
-
-// WriteMultipart will write content to a multipart.
-//
-// This function will create a context by default.
 func (s *Storage) WriteMultipart(o *Object, r io.Reader, size int64, index int, pairs ...Pair) (n int64, part *Part, err error) {
 	ctx := context.Background()
 	return s.WriteMultipartWithContext(ctx, o, r, size, index, pairs...)
 }
-
-// WriteMultipartWithContext will write content to a multipart.
 func (s *Storage) WriteMultipartWithContext(ctx context.Context, o *Object, r io.Reader, size int64, index int, pairs ...Pair) (n int64, part *Part, err error) {
 	defer func() {
-		err = s.formatError("write_multipart", err)
+		err =
+			s.formatError("write_multipart", err)
 	}()
 	if !o.Mode.IsPart() {
 		err = services.ObjectModeInvalidError{Expected: ModePart, Actual: o.Mode}
 		return
 	}
-
 	pairs = append(pairs, s.defaultPairs.WriteMultipart...)
 	var opt pairStorageWriteMultipart
 
@@ -2194,10 +1980,8 @@ func (s *Storage) WriteMultipartWithContext(ctx context.Context, o *Object, r io
 	if err != nil {
 		return
 	}
-
 	return s.writeMultipart(ctx, o, r, size, index, opt)
 }
-
 func init() {
 	services.RegisterServicer(Type, NewServicer)
 	services.RegisterStorager(Type, NewStorager)
