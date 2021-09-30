@@ -2,11 +2,9 @@ package s3
 
 import (
 	"context"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	. "github.com/beyondstorage/go-storage/v4/types"
 )
