@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 
+	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
@@ -156,12 +156,12 @@ func formatError(err error) error {
 		return err
 	}
 
-	e, ok := err.(awserr.RequestFailure)
+	e, ok := err.(smithy.APIError)
 	if !ok {
 		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 	}
 
-	switch e.Code() {
+	switch e.ErrorCode() {
 	// AWS SDK will use status code to generate awserr.Error, so "NotFound" should also be supported.
 	case "NoSuchKey", "NotFound":
 		return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
@@ -270,7 +270,7 @@ func (s *Storage) formatFileObject(v *types.Object) (o *typ.Object, err error) {
 	}
 
 	var sm ObjectSystemMetadata
-	if value := string(v.StorageClass); value != *aws.String("") {
+	if value := string(v.StorageClass); value != "" {
 		sm.StorageClass = value
 	}
 	o.SetSystemMetadata(sm)
