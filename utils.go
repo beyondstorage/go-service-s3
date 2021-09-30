@@ -157,14 +157,12 @@ func formatError(err error) error {
 		return err
 	}
 
-	fmt.Printf("%T  ", err)
-	fmt.Printf(err.Error())
-	e := err.(*smithy.OperationError)
+	e := &smithy.GenericAPIError{}
 	if ok := errors.As(err, &e); !ok {
 		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
 	}
 
-	switch e.Err.Error() {
+	switch e.Code {
 	// AWS SDK will use status code to generate awserr.Error, so "NotFound" should also be supported.
 	case "NoSuchKey", "NotFound":
 		return fmt.Errorf("%w: %v", services.ErrObjectNotExist, err)
