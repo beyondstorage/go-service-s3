@@ -157,6 +157,7 @@ func formatError(err error) error {
 		return err
 	}
 
+	fmt.Printf("%T", err)
 	e := &awshttp.ResponseError{}
 	if ok := errors.As(err, &e); !ok {
 		return fmt.Errorf("%w: %v", services.ErrUnexpected, err)
