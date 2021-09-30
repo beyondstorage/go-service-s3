@@ -111,19 +111,9 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, services.PairUnsupportedError{Pair: ps.WithCredential(opt.Credential)}
 	}
 
-	client := s3.NewFromConfig(cfg, func(options *s3.Options) {
-		options.Region = opt.Location
-		options.APIOptions = append(options.APIOptions,
-			func(stack *middleware.Stack) error {
-				v4.RemoveContentSHA256HeaderMiddleware(stack)
-				v4.RemoveComputePayloadSHA256Middleware(stack)
-				return v4.AddUnsignedPayloadMiddleware(stack)
-			})
-	})
-
 	srv = &Service{
 		cfg:     &cfg,
-		service: client,
+		service: newS3Service(&cfg, opt),
 	}
 
 	if opt.HasDefaultServicePairs {
@@ -182,34 +172,47 @@ func formatError(err error) error {
 	}
 }
 
-func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
-	srv = s3.NewFromConfig(*cfgs, func(o *s3.Options) {})
+func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
+
+	srv = s3.NewFromConfig(*cfgs, func(options *s3.Options) {
+		options.Region = opt.Location
+		options.HTTPClient = httpclient.New(opt.HTTPClientOptions)
+		options.APIOptions = append(options.APIOptions,
+			func(stack *middleware.Stack) error {
+				v4.RemoveContentSHA256HeaderMiddleware(stack)
+				v4.RemoveComputePayloadSHA256Middleware(stack)
+				return v4.AddUnsignedPayloadMiddleware(stack)
+			})
+	})
 
 	return
 }
 
 // newStorage will create a new client.
 func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
-	opt, err := parsePairStorageNew(pairs)
+	optStorage, err := parsePairStorageNew(pairs)
 	if err != nil {
 		return nil, err
 	}
 
+	optService, err := parsePairServiceNew(pairs)
+	if err != nil {
+		return nil, err
+	}
 	st = &Storage{
-		service: newS3Service(s.cfg),
-
-		name:    opt.Name,
+		service: newS3Service(s.cfg, optService),
+		name:    optStorage.Name,
 		workDir: "/",
 	}
 
-	if opt.HasDefaultStoragePairs {
-		st.defaultPairs = opt.DefaultStoragePairs
+	if optStorage.HasDefaultStoragePairs {
+		st.defaultPairs = optStorage.DefaultStoragePairs
 	}
-	if opt.HasStorageFeatures {
-		st.features = opt.StorageFeatures
+	if optStorage.HasStorageFeatures {
+		st.features = optStorage.StorageFeatures
 	}
-	if opt.HasWorkDir {
-		st.workDir = opt.WorkDir
+	if optStorage.HasWorkDir {
+		st.workDir = optStorage.WorkDir
 	}
 	return st, nil
 }
