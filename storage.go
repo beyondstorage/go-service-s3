@@ -5,17 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/iowrap"
 	"github.com/beyondstorage/go-storage/v4/services"
 	. "github.com/beyondstorage/go-storage/v4/types"
-	"io"
-	"net/http"
-	"time"
 )
 
 func (s *Storage) completeMultipart(ctx context.Context, o *Object, parts []*Part, opt pairStorageCompleteMultipart) (err error) {
@@ -653,7 +653,7 @@ func (s *Storage) write(ctx context.Context, path string, r io.Reader, size int6
 	if err != nil {
 		return
 	}
-	input.Body = manager.ReadSeekCloser(r)
+	input.Body = r
 	_, err = s.service.PutObject(ctx, input)
 	if err != nil {
 		return

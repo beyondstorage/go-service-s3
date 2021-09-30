@@ -173,7 +173,6 @@ func formatError(err error) error {
 }
 
 func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
-
 	srv = s3.NewFromConfig(*cfgs, func(options *s3.Options) {
 		options.Region = opt.Location
 		options.HTTPClient = httpclient.New(opt.HTTPClientOptions)
