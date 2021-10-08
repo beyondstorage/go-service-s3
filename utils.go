@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
@@ -144,13 +144,13 @@ func newServicerAndStorager(pairs ...typ.Pair) (srv *Service, store *Storage, er
 
 // All available storage classes are listed here.
 const (
-	StorageClassStandard           = types.ObjectStorageClassStandard
-	StorageClassReducedRedundancy  = types.ObjectStorageClassReducedRedundancy
-	StorageClassGlacier            = types.ObjectStorageClassGlacier
-	StorageClassStandardIa         = types.ObjectStorageClassStandardIa
-	StorageClassOnezoneIa          = types.ObjectStorageClassOnezoneIa
-	StorageClassIntelligentTiering = types.ObjectStorageClassIntelligentTiering
-	StorageClassDeepArchive        = types.ObjectStorageClassDeepArchive
+	StorageClassStandard           = s3types.ObjectStorageClassStandard
+	StorageClassReducedRedundancy  = s3types.ObjectStorageClassReducedRedundancy
+	StorageClassGlacier            = s3types.ObjectStorageClassGlacier
+	StorageClassStandardIa         = s3types.ObjectStorageClassStandardIa
+	StorageClassOnezoneIa          = s3types.ObjectStorageClassOnezoneIa
+	StorageClassIntelligentTiering = s3types.ObjectStorageClassIntelligentTiering
+	StorageClassDeepArchive        = s3types.ObjectStorageClassDeepArchive
 )
 
 func formatError(err error) error {
@@ -256,7 +256,7 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 	}
 }
 
-func (s *Storage) formatFileObject(v *types.Object) (o *typ.Object, err error) {
+func (s *Storage) formatFileObject(v *s3types.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
@@ -272,8 +272,8 @@ func (s *Storage) formatFileObject(v *types.Object) (o *typ.Object, err error) {
 	}
 
 	var sm ObjectSystemMetadata
-	if value := string(v.StorageClass); value != "" {
-		sm.StorageClass = value
+	if v.StorageClass != "" {
+		sm.StorageClass = string(v.StorageClass)
 	}
 	o.SetSystemMetadata(sm)
 
@@ -286,8 +286,8 @@ func (s *Storage) newObject(done bool) *typ.Object {
 
 // All available server side algorithm are listed here.
 const (
-	ServerSideEncryptionAes256 = types.ServerSideEncryptionAes256
-	ServerSideEncryptionAwsKms = types.ServerSideEncryptionAwsKms
+	ServerSideEncryptionAes256 = s3types.ServerSideEncryptionAes256
+	ServerSideEncryptionAwsKms = s3types.ServerSideEncryptionAwsKms
 )
 
 func calculateEncryptionHeaders(algo string, key []byte) (algorithm, keyBase64, keyMD5Base64 *string, err error) {
@@ -360,7 +360,7 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 		input.ContentMD5 = &opt.ContentMd5
 	}
 	if opt.HasStorageClass {
-		input.StorageClass = types.StorageClass(opt.StorageClass)
+		input.StorageClass = s3types.StorageClass(opt.StorageClass)
 	}
 	if opt.HasExceptedBucketOwner {
 		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
@@ -382,7 +382,7 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
 	}
 	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
+		input.ServerSideEncryption = s3types.ServerSideEncryption(opt.ServerSideEncryption)
 	}
 
 	return
@@ -456,16 +456,16 @@ func (s *Storage) formatCreateMultipartUploadInput(path string, opt pairStorageC
 		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
 	}
 	if opt.HasServerSideEncryption {
-		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
+		input.ServerSideEncryption = s3types.ServerSideEncryption(opt.ServerSideEncryption)
 	}
 
 	return
 }
 
 func (s *Storage) formatCompleteMultipartUploadInput(o *typ.Object, parts []*typ.Part, opt pairStorageCompleteMultipart) (input *s3.CompleteMultipartUploadInput) {
-	upload := &types.CompletedMultipartUpload{}
+	upload := &s3types.CompletedMultipartUpload{}
 	for _, v := range parts {
-		upload.Parts = append(upload.Parts, types.CompletedPart{
+		upload.Parts = append(upload.Parts, s3types.CompletedPart{
 			ETag: aws.String(v.ETag),
 			// For users the `PartNumber` is zero-based. But for S3, the effective `PartNumber` is [1, 10000].
 			// Set PartNumber=v.Index+1 here to ensure pass in an effective `PartNumber` for `CompletedPart`.
