@@ -54,6 +54,7 @@ type Storage struct {
 	typ.UnimplementedMultiparter
 	typ.UnimplementedLinker
 	typ.UnimplementedStorageHTTPSigner
+	typ.UnimplementedMultipartHTTPSigner
 }
 
 // String implements Storager.String
@@ -382,6 +383,129 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 	}
 	if opt.HasServerSideEncryption {
 		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
+	}
+
+	return
+}
+
+func (s *Storage) formatAbortMultipartUploadInput(path string, opt pairStorageDelete) (input *s3.AbortMultipartUploadInput) {
+	rp := s.getAbsPath(path)
+
+	input = &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(s.name),
+		Key:      aws.String(rp),
+		UploadId: aws.String(opt.MultipartID),
+	}
+
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+
+	return
+}
+
+func (s *Storage) formatDeleteObjectInput(path string, opt pairStorageDelete) (input *s3.DeleteObjectInput, err error) {
+	rp := s.getAbsPath(path)
+
+	if opt.HasObjectMode && opt.ObjectMode.IsDir() {
+		if !s.features.VirtualDir {
+			err = services.PairUnsupportedError{Pair: ps.WithObjectMode(opt.ObjectMode)}
+			return nil, err
+		}
+
+		rp += "/"
+	}
+
+	input = &s3.DeleteObjectInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(rp),
+	}
+
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+
+	return
+}
+
+func (s *Storage) formatCreateMultipartUploadInput(path string, opt pairStorageCreateMultipart) (input *s3.CreateMultipartUploadInput, err error) {
+	rp := s.getAbsPath(path)
+
+	input = &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(s.name),
+		Key:    aws.String(rp),
+	}
+
+	if opt.HasServerSideEncryptionBucketKeyEnabled {
+		input.BucketKeyEnabled = opt.ServerSideEncryptionBucketKeyEnabled
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if opt.HasServerSideEncryptionAwsKmsKeyID {
+		input.SSEKMSKeyId = &opt.ServerSideEncryptionAwsKmsKeyID
+	}
+	if opt.HasServerSideEncryptionContext {
+		encodedKMSEncryptionContext := base64.StdEncoding.EncodeToString([]byte(opt.ServerSideEncryptionContext))
+		input.SSEKMSEncryptionContext = &encodedKMSEncryptionContext
+	}
+	if opt.HasServerSideEncryption {
+		input.ServerSideEncryption = types.ServerSideEncryption(opt.ServerSideEncryption)
+	}
+
+	return
+}
+
+func (s *Storage) formatCompleteMultipartUploadInput(o *typ.Object, parts []*typ.Part, opt pairStorageCompleteMultipart) (input *s3.CompleteMultipartUploadInput) {
+	upload := &types.CompletedMultipartUpload{}
+	for _, v := range parts {
+		upload.Parts = append(upload.Parts, types.CompletedPart{
+			ETag: aws.String(v.ETag),
+			// For users the `PartNumber` is zero-based. But for S3, the effective `PartNumber` is [1, 10000].
+			// Set PartNumber=v.Index+1 here to ensure pass in an effective `PartNumber` for `CompletedPart`.
+			PartNumber: int32(v.Index + 1),
+		})
+	}
+
+	input = &s3.CompleteMultipartUploadInput{
+		Bucket:          aws.String(s.name),
+		Key:             aws.String(o.ID),
+		MultipartUpload: upload,
+		UploadId:        aws.String(o.MustGetMultipartID()),
+	}
+
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+
+	return
+}
+
+func (s *Storage) formatUploadPartInput(o *typ.Object, size int64, index int, opt pairStorageWriteMultipart) (input *s3.UploadPartInput, err error) {
+	input = &s3.UploadPartInput{
+		Bucket: &s.name,
+		// For S3, the `PartNumber` is [1, 10000]. But for users, the `PartNumber` is zero-based.
+		// Set PartNumber=index+1 here to ensure pass in an effective `PartNumber` for `UploadPart`.
+		// ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html
+		PartNumber:    int32(index + 1),
+		Key:           aws.String(o.ID),
+		UploadId:      aws.String(o.MustGetMultipartID()),
+		ContentLength: size,
+	}
+	if opt.HasExceptedBucketOwner {
+		input.ExpectedBucketOwner = &opt.ExceptedBucketOwner
+	}
+	if opt.HasServerSideEncryptionCustomerAlgorithm {
+		input.SSECustomerAlgorithm, input.SSECustomerKey, input.SSECustomerKeyMD5, err = calculateEncryptionHeaders(opt.ServerSideEncryptionCustomerAlgorithm, opt.ServerSideEncryptionCustomerKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return
