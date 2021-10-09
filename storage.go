@@ -324,7 +324,7 @@ func (s *Storage) nextObjectPageByDir(ctx context.Context, page *ObjectPage) err
 	}
 
 	for _, v := range output.Contents {
-		o, err := s.formatFileObject(&v)
+		o, err := s.formatFileObject(v)
 		if err != nil {
 			return err
 		}
@@ -358,7 +358,7 @@ func (s *Storage) nextObjectPageByPrefix(ctx context.Context, page *ObjectPage) 
 	}
 
 	for _, v := range output.Contents {
-		o, err := s.formatFileObject(&v)
+		o, err := s.formatFileObject(v)
 		if err != nil {
 			return err
 		}

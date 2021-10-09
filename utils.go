@@ -256,7 +256,7 @@ func (s *Storage) formatError(op string, err error, path ...string) error {
 	}
 }
 
-func (s *Storage) formatFileObject(v *s3types.Object) (o *typ.Object, err error) {
+func (s *Storage) formatFileObject(v s3types.Object) (o *typ.Object, err error) {
 	o = s.newObject(false)
 	o.ID = *v.Key
 	o.Path = s.getRelPath(*v.Key)
