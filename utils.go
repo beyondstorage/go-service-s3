@@ -93,7 +93,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(opt.Location))
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,6 @@ func formatError(err error) error {
 
 func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
 	srv = s3.NewFromConfig(*cfgs, func(options *s3.Options) {
-		options.Region = opt.Location
 		options.APIOptions = append(options.APIOptions,
 			func(stack *middleware.Stack) error {
 				signerv4.RemoveComputePayloadSHA256Middleware(stack)
