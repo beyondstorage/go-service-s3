@@ -90,9 +90,8 @@ func (s *Storage) createDir(ctx context.Context, path string, opt pairStorageCre
 	o.Path = path
 	o.SetEtag(aws.ToString(output.ETag))
 	var sm ObjectSystemMetadata
-	if output.ServerSideEncryption != "" {
-		sm.ServerSideEncryption = string(output.ServerSideEncryption)
-	}
+	//use string() to solve warning of cannot use s3types.ServerSideEncryption as string value
+	sm.ServerSideEncryption = string(output.ServerSideEncryption)
 	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
@@ -147,9 +146,8 @@ func (s *Storage) createLink(ctx context.Context, path string, target string, op
 	}
 
 	var sm ObjectSystemMetadata
-	if output.ServerSideEncryption != "" {
-		sm.ServerSideEncryption = string(output.ServerSideEncryption)
-	}
+	//use string() to solve warning of cannot use s3types.ServerSideEncryption as string value
+	sm.ServerSideEncryption = string(output.ServerSideEncryption)
 	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
@@ -187,9 +185,8 @@ func (s *Storage) createMultipart(ctx context.Context, path string, opt pairStor
 	o.Mode |= ModePart
 	o.SetMultipartID(aws.ToString(output.UploadId))
 	var sm ObjectSystemMetadata
-	if output.ServerSideEncryption != "" {
-		sm.ServerSideEncryption = string(output.ServerSideEncryption)
-	}
+	//use string() to solve warning of cannot use s3types.ServerSideEncryption as string value
+	sm.ServerSideEncryption = string(output.ServerSideEncryption)
 	if v := aws.ToString(output.SSEKMSKeyId); v != "" {
 		sm.ServerSideEncryptionAwsKmsKeyID = v
 	}
@@ -650,9 +647,8 @@ func (s *Storage) stat(ctx context.Context, path string, opt pairStorageStat) (o
 	}
 
 	var sm ObjectSystemMetadata
-	if output.StorageClass != "" {
-		sm.StorageClass = string(output.StorageClass)
-	}
+	//use string() to solve warning of cannot use s3types.StorageClass as string value
+	sm.StorageClass = string(output.StorageClass)
 	if output.ServerSideEncryption != "" {
 		sm.ServerSideEncryption = "output.ServerSideEncryption"
 	}

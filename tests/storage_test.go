@@ -42,6 +42,11 @@ func TestHTTPSigner(t *testing.T) {
 	}
 	tests.TestStorageHTTPSignerWrite(t, setupTest(t))
 	tests.TestStorageHTTPSignerRead(t, setupTest(t))
+	// presign operations don't support DeleteObject & CreateMultipartUpload
+	// DeleteObject is used in TestStorageHTTPSignerDelete
+	// CreateMultipartUpload is used in TestMultipartHTTPSigner
+	// tests.TestStorageHTTPSignerDelete(t, setupTest(t)) is not supported
+	// tests.TestMultipartHTTPSigner(t, setupTest(t)) is not supported
 }
 
 // https://github.com/beyondstorage/go-storage/issues/741

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	signerv4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -179,10 +179,10 @@ func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
 		options.Region = opt.Location
 		options.APIOptions = append(options.APIOptions,
 			func(stack *middleware.Stack) error {
-				v4.RemoveComputePayloadSHA256Middleware(stack)
-				v4.AddUnsignedPayloadMiddleware(stack)
-				v4.RemoveContentSHA256HeaderMiddleware(stack)
-				return v4.AddContentSHA256HeaderMiddleware(stack)
+				signerv4.RemoveComputePayloadSHA256Middleware(stack)
+				signerv4.AddUnsignedPayloadMiddleware(stack)
+				signerv4.RemoveContentSHA256HeaderMiddleware(stack)
+				return signerv4.AddContentSHA256HeaderMiddleware(stack)
 			})
 	})
 
@@ -264,17 +264,17 @@ func (s *Storage) formatFileObject(v *s3types.Object) (o *typ.Object, err error)
 	// If you want to get the exact object mode, please use `stat`
 	o.Mode |= typ.ModeRead
 
-	o.SetContentLength(*aws.Int64(v.Size))
-	o.SetLastModified(*aws.Time(*v.LastModified))
+	o.SetContentLength(v.Size)
+	o.SetLastModified(aws.ToTime(v.LastModified))
 
 	if v.ETag != nil {
 		o.SetEtag(*v.ETag)
 	}
 
 	var sm ObjectSystemMetadata
-	if v.StorageClass != "" {
-		sm.StorageClass = string(v.StorageClass)
-	}
+	//use string() to solve warning of cannot use s3types.ObjectStorageClass as string value
+	sm.StorageClass = string(v.StorageClass)
+
 	o.SetSystemMetadata(sm)
 
 	return
@@ -353,7 +353,7 @@ func (s *Storage) formatPutObjectInput(path string, size int64, opt pairStorageW
 	input = &s3.PutObjectInput{
 		Bucket:        aws.String(s.name),
 		Key:           aws.String(rp),
-		ContentLength: *aws.Int64(size),
+		ContentLength: size,
 	}
 
 	if opt.HasContentMd5 {
