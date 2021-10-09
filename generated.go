@@ -255,8 +255,6 @@ type pairServiceNew struct {
 	ForcePathStyle         bool
 	HasHTTPClientOptions   bool
 	HTTPClientOptions      *httpclient.Options
-	HasLocation            bool
-	Location               string
 	HasServiceFeatures     bool
 	ServiceFeatures        ServiceFeatures
 	HasUseAccelerate       bool
@@ -309,12 +307,6 @@ func parsePairServiceNew(opts []Pair) (pairServiceNew, error) {
 			}
 			result.HasHTTPClientOptions = true
 			result.HTTPClientOptions = v.Value.(*httpclient.Options)
-		case "location":
-			if result.HasLocation {
-				continue
-			}
-			result.HasLocation = true
-			result.Location = v.Value.(string)
 		case "service_features":
 			if result.HasServiceFeatures {
 				continue
