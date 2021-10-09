@@ -271,9 +271,8 @@ func (s *Storage) formatFileObject(v s3types.Object) (o *typ.Object, err error) 
 	}
 
 	var sm ObjectSystemMetadata
-	//use string() to solve warning of cannot use s3types.ObjectStorageClass as string value
+	//v.StorageClass's type is s3types.ObjectStorageClass, which is equivalent to string
 	sm.StorageClass = string(v.StorageClass)
-
 	o.SetSystemMetadata(sm)
 
 	return
