@@ -42,8 +42,6 @@ func TestHTTPSigner(t *testing.T) {
 	}
 	tests.TestStorageHTTPSignerWrite(t, setupTest(t))
 	tests.TestStorageHTTPSignerRead(t, setupTest(t))
-	tests.TestStorageHTTPSignerDelete(t, setupTest(t))
-	tests.TestMultipartHTTPSigner(t, setupTest(t))
 }
 
 // https://github.com/beyondstorage/go-storage/issues/741
