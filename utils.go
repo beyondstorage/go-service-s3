@@ -115,7 +115,7 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 
 	srv = &Service{
 		cfg:     &cfg,
-		service: newS3Service(&cfg, opt),
+		service: newS3Service(&cfg),
 	}
 
 	if opt.HasDefaultServicePairs {
@@ -174,7 +174,7 @@ func formatError(err error) error {
 	}
 }
 
-func newS3Service(cfgs *aws.Config, opt pairServiceNew) (srv *s3.Client) {
+func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
 	srv = s3.NewFromConfig(*cfgs, func(options *s3.Options) {
 		options.APIOptions = append(options.APIOptions,
 			func(stack *middleware.Stack) error {
@@ -195,12 +195,12 @@ func (s *Service) newStorage(pairs ...typ.Pair) (st *Storage, err error) {
 		return nil, err
 	}
 
-	optService, err := parsePairServiceNew(pairs)
-	if err != nil {
-		return nil, err
+	if optStorage.HasLocation {
+		s.cfg.Region = optStorage.Location
 	}
+
 	st = &Storage{
-		service: newS3Service(s.cfg, optService),
+		service: newS3Service(s.cfg),
 		name:    optStorage.Name,
 		workDir: "/",
 	}
