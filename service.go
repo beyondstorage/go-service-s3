@@ -16,8 +16,10 @@ func (s *Service) create(ctx context.Context, name string, opt pairServiceCreate
 		return nil, err
 	}
 	input := &s3.CreateBucketInput{
-		Bucket:                    aws.String(name),
-		CreateBucketConfiguration: &s3types.CreateBucketConfiguration{},
+		Bucket: aws.String(name),
+		CreateBucketConfiguration: &s3types.CreateBucketConfiguration{
+			LocationConstraint: s3types.BucketLocationConstraint(opt.Location),
+		},
 	}
 	_, err = s.service.CreateBucket(ctx, input)
 	if err != nil {
