@@ -175,9 +175,13 @@ func formatError(err error) error {
 }
 
 func newS3Service(cfgs *aws.Config) (srv *s3.Client) {
+	// S3 will calculate payload's content-sha256 by default, we change this behavior for following reasons:
+	// - To support uploading content without seek support: stdin, bytes.Reader
+	// - To allow user decide when to calculate the hash, especially for big files
 	srv = s3.NewFromConfig(*cfgs, func(options *s3.Options) {
 		options.APIOptions = append(options.APIOptions,
 			func(stack *middleware.Stack) error {
+				// With removing PayloadSHA256 and adding UnsignedPayload, signer will set "X-Amz-Content-Sha256" to "UNSIGNED-PAYLOAD"
 				signerv4.RemoveComputePayloadSHA256Middleware(stack)
 				signerv4.AddUnsignedPayloadMiddleware(stack)
 				signerv4.RemoveContentSHA256HeaderMiddleware(stack)
