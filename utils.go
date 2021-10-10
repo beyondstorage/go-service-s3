@@ -93,7 +93,18 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 		return nil, err
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	//Set s3 config's endpoint
+	customResolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		if opt.HasEndpoint {
+			return aws.Endpoint{
+				URL: opt.Endpoint,
+			}, nil
+		}
+		// returning EndpointNotFoundError will allow the service to fallback to it's default resolution
+		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+	})
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithEndpointResolver(customResolver))
 	if err != nil {
 		return nil, err
 	}
