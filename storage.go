@@ -476,7 +476,9 @@ func (s *Storage) querySignHTTPRead(ctx context.Context, path string, expire tim
 	if err != nil {
 		return
 	}
-	presignClient := s3.NewPresignClient(s.service)
+	presignClient := s3.NewPresignClient(s.service, func(options *s3.PresignOptions) {
+		options.Expires = expire
+	})
 	getReq, err := presignClient.PresignGetObject(ctx, input)
 	if err != nil {
 		return
@@ -499,7 +501,9 @@ func (s *Storage) querySignHTTPWrite(ctx context.Context, path string, size int6
 	if err != nil {
 		return nil, err
 	}
-	presignClient := s3.NewPresignClient(s.service)
+	presignClient := s3.NewPresignClient(s.service, func(options *s3.PresignOptions) {
+		options.Expires = expire
+	})
 	putReq, err := presignClient.PresignPutObject(ctx, input)
 	if err != nil {
 		return nil, err
@@ -524,7 +528,9 @@ func (s *Storage) querySignHTTPWriteMultipart(ctx context.Context, o *Object, si
 		return nil, err
 	}
 
-	presignClient := s3.NewPresignClient(s.service)
+	presignClient := s3.NewPresignClient(s.service, func(options *s3.PresignOptions) {
+		options.Expires = expire
+	})
 	putReq, err := presignClient.PresignUploadPart(ctx, input)
 	if err != nil {
 		return nil, err
