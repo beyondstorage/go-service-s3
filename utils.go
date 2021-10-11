@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/beyondstorage/go-endpoint"
 	ps "github.com/beyondstorage/go-storage/v4/pairs"
 	"github.com/beyondstorage/go-storage/v4/pkg/credential"
 	"github.com/beyondstorage/go-storage/v4/pkg/httpclient"
@@ -96,8 +97,22 @@ func newServicer(pairs ...typ.Pair) (srv *Service, err error) {
 	//Set s3 config's endpoint
 	customResolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
 		if opt.HasEndpoint {
+			ep, err := endpoint.Parse(opt.Endpoint)
+			if err != nil {
+				return aws.Endpoint{}, err
+			}
+
+			var url string
+			switch ep.Protocol() {
+			case endpoint.ProtocolHTTP:
+				url, _, _ = ep.HTTP()
+			case endpoint.ProtocolHTTPS:
+				url, _, _ = ep.HTTPS()
+			default:
+				return aws.Endpoint{}, services.PairUnsupportedError{Pair: ps.WithEndpoint(opt.Endpoint)}
+			}
 			return aws.Endpoint{
-				URL: opt.Endpoint,
+				URL: url,
 			}, nil
 		}
 		// returning EndpointNotFoundError will allow the service to fallback to it's default resolution
