@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.5.0] - 2021-10-09
+
+### Added
+
+- test: Add new test case
+- ci: Enable auto merge for dependabot
+- docs: Add Compatible Services section in README
+- feat: Add support for Write Empty File Behavior (#228)
+- feat: Add Multipart HTTP Signer support (#237)
+
+### Changed
+
+- docs: Update README (#208)
+- ci: Sync github actions (#220, #224, #239)
+
+### Upgraded
+
+- build(deps): Bump github.com/aws/aws-sdk-go to 1.40.58
+
 ## [v2.4.0] - 2021-09-03
 
 ### Added
@@ -136,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Implement s3 services.
 
+[v2.5.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.4.0...v2.5.0
 [v2.4.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.3.0...v2.4.0
 [v2.3.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/beyondstorage/go-service-s3/compare/v2.1.0...v2.2.0
