@@ -51,12 +51,12 @@ func (i *storagePageStatus) ContinuationToken() string {
 type partPageStatus struct {
 	key              string
 	maxParts         int64
-	partNumberMarker int64
+	partNumberMarker string
 	uploadId         string
 
 	expectedBucketOwner string
 }
 
 func (i *partPageStatus) ContinuationToken() string {
-	return strconv.FormatInt(i.partNumberMarker, 10)
+	return i.partNumberMarker
 }
